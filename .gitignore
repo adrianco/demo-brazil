@@ -205,3 +205,68 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Claude configuration files (keep CLAUDE.md)
+.claude/
+!CLAUDE.md
+
+# Claude Flow and MCP generated files
+.mcp.json
+claude-flow.config.json
+.swarm/
+.hive-mind/
+.claude-flow/
+memory/
+coordination/
+*.db
+*.db-journal
+*.db-wal
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+claude-flow
+hive-mind-prompt-*.txt
+
+# Development environment
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.pnp.*
+.yarn/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-*
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Temporary and log files
+*.log
+tmp/
+temp/
+logs/
+
+# Test coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Environment files
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Build outputs
+out/
+.next/
+.nuxt/
+.cache/
+
+# Temporary prompt files
+prompts.txt
