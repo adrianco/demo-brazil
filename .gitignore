@@ -270,3 +270,75 @@ out/
 
 # Temporary prompt files
 prompts.txt
+
+# Neo4j database files
+neo4j-data/
+*.graphdb
+*.graphmlz
+
+# Credentials and secrets
+*.key
+*.pem
+*.cert
+secrets.json
+credentials.json
+auth.json
+
+# OS files
+.DS_Store
+Desktop.ini
+.Spotlight-V100
+.Trashes
+
+# Backup files
+*.backup
+*.bak
+*.old
+*.orig
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# Data files (can be large)
+data/
+datasets/
+*.csv
+*.json
+*.xml
+!package.json
+!tsconfig.json
+!.eslintrc.json
+
+# Model files
+models/
+*.pkl
+*.h5
+*.model
+*.weights
+
+# Documentation build
+docs/build/
+docs/_build/
+*.pdf
+
+# Virtual environments
+.conda/
+conda-env/
+virtualenv/
+
+# Cache directories
+.cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+
+# Session files
+*.session
+*.pid
+
+# Local configuration
+local.config.*
+*.local.*
