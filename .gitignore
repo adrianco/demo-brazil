@@ -268,9 +268,6 @@ out/
 .nuxt/
 .cache/
 
-# Temporary prompt files
-prompts.txt
-
 # Neo4j database files
 neo4j-data/
 *.graphdb
