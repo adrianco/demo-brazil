@@ -64,7 +64,7 @@ Feature: Match Analysis
 
   Scenario: Historical match results
     Given I have two team IDs
-    When I request historical matches between "corinthians" and "s„o_paulo"
+    When I request historical matches between "corinthians" and "s√£o_paulo"
     Then I should receive match history
     And the history should include all past encounters
     And each match should include score and date

@@ -15,7 +15,9 @@ __version__ = "1.0.0"
 __author__ = "Brazilian Soccer Knowledge Graph Team"
 __description__ = "Neo4j integration and graph operations for Brazilian soccer data"
 
-from .database import Neo4jConnection
+from .database import Neo4jDatabase
+# Create an alias for backwards compatibility
+Neo4jConnection = Neo4jDatabase
 from .models import (
     GraphEntity,
     Player, Team, Match, Stadium, Competition, Season, Coach,

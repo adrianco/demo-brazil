@@ -594,3 +594,11 @@ if __name__ == "__main__":
         print(f"'{date_str}' -> {parsed}")
 
     print("\nAll tests completed!")
+
+
+def setup_logging(level='INFO'):
+    import logging
+    logging.basicConfig(
+        level=getattr(logging, level.upper()),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )

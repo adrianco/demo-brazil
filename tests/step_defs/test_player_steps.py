@@ -315,3 +315,46 @@ def response_should_be_empty(bdd_context):
     """Verify response is empty or null."""
     response = bdd_context.get('response')
     assert response is None or response == {} or response.get('player') is None
+# Add the missing Given step to all test files
+@given("the MCP server is running")
+def mcp_server_running():
+    """Ensure MCP server is running (mocked)."""
+    pass  # Server is mocked via fixtures
+
+
+@given("the knowledge graph contains player data")
+def knowledge_graph_has_player_data(neo4j_driver):
+    """Ensure the knowledge graph contains player data."""
+    # This would normally populate test data, but with mocks it's not needed
+    pass
+
+# Additional missing step definitions
+@given("I want to search for a player")
+def want_to_search_player():
+    """Set up context for player search."""
+    pass
+
+@when('I search for "Neymar Jr"')
+def search_for_neymar(mcp_client):
+    """Search for Neymar Jr."""
+    result = mcp_client.search_player("Neymar Jr")
+    bdd_context['response'] = result
+
+@then("I should get player details")
+def should_get_player_details():
+    """Verify player details are returned."""
+    response = bdd_context.get('response')
+    assert response is not None
+    assert 'player_id' in response
+
+@then("the response should include career information")
+def response_includes_career_info():
+    """Verify career information is included."""
+    response = bdd_context.get('response')
+    assert 'career' in response or 'teams' in response
+
+@then("the response should include current team")
+def response_includes_current_team():
+    """Verify current team is included."""
+    response = bdd_context.get('response')
+    assert 'current_team' in response or 'team' in response

@@ -43,7 +43,7 @@ enabling comprehensive analysis of Brazilian soccer data through graph queries
 and providing a structured approach to soccer data management.
 """
 
-from .graph.database import Neo4jConnection
+from .graph.database import Neo4jDatabase as Neo4jConnection
 from .graph.models import (
     Player, Team, Match, Stadium, Competition, Season, Coach,
     Goal, Card, Transfer, GraphSchema, PlayerPosition, MatchResult, CardType
@@ -51,9 +51,12 @@ from .graph.models import (
 from .data_pipeline.kaggle_loader import KaggleLoader
 from .data_pipeline.graph_builder import GraphBuilder
 from .utils.data_utils import (
-    normalize_text, normalize_team_name, normalize_player_name,
-    parse_date, safe_int, safe_float, safe_bool
+    normalize_text, normalize_team_name, normalize_brazilian_name,
+    parse_date, safe_int, safe_float
 )
+# Create aliases for backwards compatibility
+normalize_player_name = normalize_brazilian_name
+safe_bool = lambda x, default=False: bool(x) if x is not None else default
 
 # Package metadata
 __version__ = "0.1.0"

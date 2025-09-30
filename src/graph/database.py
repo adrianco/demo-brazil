@@ -79,16 +79,16 @@ class Neo4jDatabase:
         self.password = password
         self._driver: Optional[Driver] = None
 
-        # Connection configuration
-        self._config = {
-            "max_connection_lifetime": max_connection_lifetime,
-            "max_connection_pool_size": max_connection_pool_size,
-            "connection_acquisition_timeout": connection_acquisition_timeout,
-            "encrypted": encrypted,
-            "trust": neo4j.TRUST_ALL_CERTIFICATES if not encrypted else neo4j.TRUST_SYSTEM_CA_SIGNED_CERTIFICATES
-        }
+        # Store connection parameters for later use
+        self.max_connection_lifetime = max_connection_lifetime
+        self.max_connection_pool_size = max_connection_pool_size
+        self.connection_acquisition_timeout = connection_acquisition_timeout
+        self.encrypted = encrypted
 
-        # Initialize connection
+    def connect(self) -> None:
+        """
+        Connect to the database (public method)
+        """
         self._connect()
 
     def _connect(self) -> None:
@@ -100,10 +100,10 @@ class Neo4jDatabase:
         """
         try:
             logger.info(f"Connecting to Neo4j at {self.uri}")
+            # Create driver with simpler config for compatibility
             self._driver = GraphDatabase.driver(
                 self.uri,
-                auth=(self.user, self.password),
-                **self._config
+                auth=(self.user, self.password)
             )
 
             # Test connection
@@ -123,6 +123,53 @@ class Neo4jDatabase:
             error_msg = f"Unexpected error connecting to Neo4j: {str(e)}"
             logger.error(error_msg)
             raise Neo4jConnectionError(error_msg) from e
+
+    def execute_read(self, query: str, parameters: Optional[Dict] = None) -> List[Dict]:
+        """
+        Simplified read query execution
+        """
+        return self.execute_read_query(query, parameters)
+
+    def execute_write(self, query: str, parameters: Optional[Dict] = None) -> List[Dict]:
+        """
+        Simplified write query execution
+        """
+        return self.execute_write_query(query, parameters)
+
+    def clear_database(self) -> None:
+        """
+        Clear all nodes and relationships from the database
+        """
+        try:
+            self.execute_write("MATCH (n) DETACH DELETE n")
+            logger.info("Database cleared successfully")
+        except Exception as e:
+            logger.error(f"Failed to clear database: {str(e)}")
+            raise
+
+    def get_database_info(self) -> Dict[str, Any]:
+        """
+        Get basic database information
+        """
+        try:
+            node_count = self.execute_read("MATCH (n) RETURN count(n) as count")[0]["count"]
+            rel_count = self.execute_read("MATCH ()-[r]->() RETURN count(r) as count")[0]["count"]
+
+            labels_result = self.execute_read("CALL db.labels()")
+            labels = [r["label"] for r in labels_result]
+
+            rel_types_result = self.execute_read("CALL db.relationshipTypes()")
+            rel_types = [r["relationshipType"] for r in rel_types_result]
+
+            return {
+                "node_count": node_count,
+                "relationship_count": rel_count,
+                "labels": labels,
+                "relationship_types": rel_types
+            }
+        except Exception as e:
+            logger.error(f"Failed to get database info: {str(e)}")
+            return {"error": str(e)}
 
     def test_connection(self) -> Dict[str, Any]:
         """
@@ -178,13 +225,13 @@ class Neo4jDatabase:
             }
 
     @contextmanager
-    def session(self, database: str = None, access_mode: str = neo4j.WRITE_ACCESS):
+    def session(self, database: str = None, access_mode: str = None):
         """
         Context manager for Neo4j sessions
 
         Args:
             database: Target database name (None for default)
-            access_mode: Session access mode (READ_ACCESS or WRITE_ACCESS)
+            access_mode: Session access mode (deprecated, kept for compatibility)
 
         Yields:
             Neo4j session object
@@ -197,11 +244,11 @@ class Neo4jDatabase:
 
         session = None
         try:
-            session_config = {"default_access_mode": access_mode}
+            # Use simpler session creation for compatibility
             if database:
-                session_config["database"] = database
-
-            session = self._driver.session(**session_config)
+                session = self._driver.session(database=database)
+            else:
+                session = self._driver.session()
             yield session
 
         except Exception as e:
@@ -216,7 +263,7 @@ class Neo4jDatabase:
         query: str,
         parameters: Optional[Dict[str, Any]] = None,
         database: str = None,
-        access_mode: str = neo4j.WRITE_ACCESS
+        access_mode: str = None
     ) -> List[Dict[str, Any]]:
         """
         Execute a Cypher query and return results
@@ -266,7 +313,7 @@ class Neo4jDatabase:
         Returns:
             List of result records as dictionaries
         """
-        return self.execute_query(query, parameters, database, neo4j.WRITE_ACCESS)
+        return self.execute_query(query, parameters, database)
 
     def execute_read_query(
         self,
@@ -285,7 +332,7 @@ class Neo4jDatabase:
         Returns:
             List of result records as dictionaries
         """
-        return self.execute_query(query, parameters, database, neo4j.READ_ACCESS)
+        return self.execute_query(query, parameters, database)
 
     def execute_transaction(
         self,
@@ -306,7 +353,7 @@ class Neo4jDatabase:
             Neo4jQueryError: If transaction fails
         """
         try:
-            with self.session(database=database, access_mode=neo4j.WRITE_ACCESS) as session:
+            with self.session(database=database) as session:
                 def execute_queries(tx):
                     results = []
                     for query_dict in queries:
@@ -336,7 +383,7 @@ class Neo4jDatabase:
         try:
             schema_info = {}
 
-            with self.session(access_mode=neo4j.READ_ACCESS) as session:
+            with self.session() as session:
                 # Get node labels
                 labels_result = session.run("CALL db.labels()")
                 schema_info["labels"] = [record["label"] for record in labels_result]
@@ -417,7 +464,7 @@ def execute_query(
     query: str,
     parameters: Optional[Dict[str, Any]] = None,
     database: str = None,
-    access_mode: str = neo4j.WRITE_ACCESS
+    access_mode: str = None
 ) -> List[Dict[str, Any]]:
     """
     Execute query using global database instance

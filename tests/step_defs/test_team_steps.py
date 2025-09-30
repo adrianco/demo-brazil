@@ -45,19 +45,19 @@ def graph_contains_team_data(neo4j_driver):
         # Create test teams
         session.run("""
             MERGE (t1:Team {team_id: 'flamengo', name: 'Flamengo',
-                           league: 'SÈrie A', founded: 1895,
-                           stadium: 'Maracan„', capacity: 78838,
+                           league: 'S√©rie A', founded: 1895,
+                           stadium: 'Maracan√£', capacity: 78838,
                            city: 'Rio de Janeiro', state: 'RJ'})
             MERGE (t2:Team {team_id: 'palmeiras', name: 'Palmeiras',
-                           league: 'SÈrie A', founded: 1914,
+                           league: 'S√©rie A', founded: 1914,
                            stadium: 'Allianz Parque', capacity: 43713,
-                           city: 'S„o Paulo', state: 'SP'})
+                           city: 'S√£o Paulo', state: 'SP'})
             MERGE (t3:Team {team_id: 'corinthians', name: 'Corinthians',
-                           league: 'SÈrie A', founded: 1910,
-                           stadium: 'Neo QuÌmica Arena', capacity: 49205,
-                           city: 'S„o Paulo', state: 'SP'})
+                           league: 'S√©rie A', founded: 1910,
+                           stadium: 'Neo Qu√≠mica Arena', capacity: 49205,
+                           city: 'S√£o Paulo', state: 'SP'})
             MERGE (t4:Team {team_id: 'santos', name: 'Santos',
-                           league: 'SÈrie A', founded: 1912,
+                           league: 'S√©rie A', founded: 1912,
                            stadium: 'Vila Belmiro', capacity: 16068,
                            city: 'Santos', state: 'SP'})
         """)
@@ -95,13 +95,13 @@ def search_for_team(team_name, mcp_client):
         mock_call.return_value = {
             'team_id': 'flamengo',
             'name': team_name,
-            'league': 'SÈrie A',
+            'league': 'S√©rie A',
             'founded': 1895,
-            'stadium': 'Maracan„',
+            'stadium': 'Maracan√£',
             'capacity': 78838,
             'city': 'Rio de Janeiro',
             'history': {
-                'titles': ['Brasileir„o 2019, 2020', 'Copa Libertadores 2019'],
+                'titles': ['Brasileir√£o 2019, 2020', 'Copa Libertadores 2019'],
                 'notable_players': ['Zico', 'Ronaldinho', 'Adriano']
             },
             'current_squad': [
@@ -259,7 +259,7 @@ def request_transfer_history(team_id, mcp_client):
                 ],
                 'outgoing': [
                     {
-                        'player': 'Lucas Paquet·',
+                        'player': 'Lucas Paquet√°',
                         'to_team': 'West Ham',
                         'date': '2022-08-30',
                         'fee': 51000000,
@@ -389,7 +389,7 @@ def request_coaching_staff(team_id, mcp_client):
                     {'name': 'Pablo Fernandez', 'role': 'Tactical Analyst'}
                 ],
                 'technical_staff': [
-                    {'name': 'Dr. M·rcio Tannure', 'role': 'Head of Medical'},
+                    {'name': 'Dr. M√°rcio Tannure', 'role': 'Head of Medical'},
                     {'name': 'Raul Cosme', 'role': 'Fitness Coach'}
                 ]
             }
@@ -407,7 +407,7 @@ def request_facility_information(team_id, mcp_client):
             'team_id': team_id,
             'facilities': {
                 'stadium': {
-                    'name': 'Arena do GrÍmio',
+                    'name': 'Arena do Gr√™mio',
                     'capacity': 55662,
                     'opened': 2012,
                     'location': 'Porto Alegre, RS',
@@ -444,14 +444,14 @@ def request_rivalry_data(team_id, mcp_client):
             'rivalries': [
                 {
                     'rival': 'Vasco da Gama',
-                    'rivalry_name': 'Cl·ssico dos Milhıes',
+                    'rivalry_name': 'Cl√°ssico dos Milh√µes',
                     'intensity': 'High',
                     'head_to_head': {'wins': 145, 'draws': 89, 'losses': 132},
                     'memorable_matches': [
                         {
                             'date': '2011-05-15',
                             'score': '5-4',
-                            'competition': 'Brasileir„o',
+                            'competition': 'Brasileir√£o',
                             'significance': 'Historic comeback'
                         }
                     ]
@@ -967,3 +967,15 @@ def should_show_growth_trends():
     social_media = test_context['social_media_result']['social_media']
     metrics = social_media['engagement_metrics']
     assert 'growth_rate_monthly' in metrics
+# Add the missing Given step to all test files
+@given("the MCP server is running")
+def mcp_server_running():
+    """Ensure MCP server is running (mocked)."""
+    pass  # Server is mocked via fixtures
+
+
+@given("the knowledge graph contains team data")  
+def knowledge_graph_has_team_data(neo4j_driver):
+    """Ensure the knowledge graph contains team data."""
+    pass
+

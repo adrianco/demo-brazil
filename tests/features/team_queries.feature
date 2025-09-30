@@ -33,9 +33,9 @@ Feature: Team Queries
 
   Scenario: Search teams by league
     Given I want to find teams by competition
-    When I search for teams in "Série A"
+    When I search for teams in "SÃ©rie A"
     Then I should get a list of teams
-    And each team should be in "Série A"
+    And each team should be in "SÃ©rie A"
     And the results should include team rankings
 
   Scenario: Team head-to-head comparison
@@ -64,7 +64,7 @@ Feature: Team Queries
 
   Scenario: Team achievement history
     Given I have a valid team ID
-    When I request achievements for "pelé_santos"
+    When I request achievements for "pelÃ©_santos"
     Then I should get trophy history
     And the achievements should include championship titles
     And the achievements should include international trophies
@@ -72,7 +72,7 @@ Feature: Team Queries
 
   Scenario: Team youth academy
     Given I have a valid team ID
-    When I request youth academy information for "são_paulo"
+    When I request youth academy information for "sÃ£o_paulo"
     Then I should get academy details
     And the data should include young player prospects
     And the data should include academy facilities
@@ -95,7 +95,7 @@ Feature: Team Queries
 
   Scenario: Team stadium and facilities
     Given I have a valid team ID
-    When I request facility information for "grêmio"
+    When I request facility information for "grÃªmio"
     Then I should get stadium details
     And the data should include stadium capacity
     And the data should include facility amenities

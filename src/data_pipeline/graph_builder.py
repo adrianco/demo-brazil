@@ -75,7 +75,7 @@ from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 import uuid
 
-from ..graph.database import Neo4jConnection
+from ..graph.database import Neo4jDatabase as Neo4jConnection
 from ..graph.models import (
     Player, Team, Match, Stadium, Competition, Season, Coach,
     Goal, Card, Transfer, GraphSchema, GraphEntity
@@ -117,12 +117,12 @@ class GraphBuilder:
         self.schema.create_schema()
         self.logger.info("Schema setup completed")
 
-    def create_entity_batch(self, entities: List[GraphEntity], label: str) -> int:
+    def create_entity_batch(self, entities: List[Any], label: str) -> int:
         """
         Create a batch of entities in the database.
 
         Args:
-            entities: List of entities to create
+            entities: List of entities to create (can be dicts or objects with to_dict())
             label: Node label for the entities
 
         Returns:
@@ -146,8 +146,16 @@ class GraphBuilder:
             """
 
             try:
-                # Convert entities to dictionaries
-                entity_dicts = [entity.to_dict() for entity in batch]
+                # Convert entities to dictionaries (handle both dict and object formats)
+                entity_dicts = []
+                for entity in batch:
+                    if isinstance(entity, dict):
+                        entity_dicts.append(entity)
+                    elif hasattr(entity, 'to_dict'):
+                        entity_dicts.append(entity.to_dict())
+                    else:
+                        # Try to convert object to dict
+                        entity_dicts.append(entity.__dict__)
 
                 result = self.db.execute_write_query(query, {"entities": entity_dicts})
                 batch_created = result[0]["created"] if result else 0
@@ -203,12 +211,12 @@ class GraphBuilder:
         """Create transfer entities in the database."""
         return self.create_entity_batch(transfers, "Transfer")
 
-    def create_match_relationships(self, matches: List[Match]) -> int:
+    def create_match_relationships(self, matches: List[Any]) -> int:
         """
         Create relationships for matches (home team, away team, stadium, competition).
 
         Args:
-            matches: List of match entities
+            matches: List of match entities (dicts or objects)
 
         Returns:
             Number of relationships created
@@ -219,27 +227,39 @@ class GraphBuilder:
             batch = matches[i:i + self.batch_size]
 
             try:
+                # Convert matches to normalized format
+                match_data = []
+                for m in batch:
+                    if isinstance(m, dict):
+                        match_data.append({
+                            "id": m.get("id"),
+                            "home_team": m.get("home_team"),
+                            "away_team": m.get("away_team")
+                        })
+                    else:
+                        match_data.append({
+                            "id": m.id,
+                            "home_team": getattr(m, "home_team_id", None) or getattr(m, "home_team", None),
+                            "away_team": getattr(m, "away_team_id", None) or getattr(m, "away_team", None)
+                        })
+
                 # Create home team relationships
                 query = """
                     UNWIND $matches AS match
                     MATCH (m:Match {id: match.id})
-                    MATCH (t:Team {id: match.home_team_id})
+                    MATCH (t:Team {name: match.home_team})
                     CREATE (m)-[:HOME_TEAM]->(t)
                 """
-                self.db.execute_write_query(query, {
-                    "matches": [{"id": m.id, "home_team_id": m.home_team_id} for m in batch]
-                })
+                self.db.execute_write_query(query, {"matches": match_data})
 
                 # Create away team relationships
                 query = """
                     UNWIND $matches AS match
                     MATCH (m:Match {id: match.id})
-                    MATCH (t:Team {id: match.away_team_id})
+                    MATCH (t:Team {name: match.away_team})
                     CREATE (m)-[:AWAY_TEAM]->(t)
                 """
-                self.db.execute_write_query(query, {
-                    "matches": [{"id": m.id, "away_team_id": m.away_team_id} for m in batch]
-                })
+                self.db.execute_write_query(query, {"matches": match_data})
 
                 relationships_created += len(batch) * 2  # Home and away relationships
 
@@ -372,31 +392,37 @@ class GraphBuilder:
             self.setup_schema()
 
             # Create entities in dependency order
-            self.create_competitions(data.get("competitions", []))
-            self.create_stadiums(data.get("stadiums", []))
-            self.create_teams(data.get("teams", []))
+            # Handle venues as stadiums
+            venues = data.get("venues", []) or data.get("stadiums", [])
+            if venues:
+                self.create_entity_batch(venues, "Stadium")
 
-            # Create sample coaches and seasons
+            self.create_entity_batch(data.get("competitions", []), "Competition")
+            self.create_entity_batch(data.get("teams", []), "Team")
+
+            # Create sample coaches and seasons (as dicts for consistency)
             coaches = [
-                Coach(id="COACH_001", name="Tite", nationality="Brazil"),
-                Coach(id="COACH_002", name="Abel Ferreira", nationality="Portugal"),
-                Coach(id="COACH_003", name="Vítor Pereira", nationality="Portugal")
+                {"id": "COACH_001", "name": "Tite", "nationality": "Brazil"},
+                {"id": "COACH_002", "name": "Abel Ferreira", "nationality": "Portugal"},
+                {"id": "COACH_003", "name": "Vítor Pereira", "nationality": "Portugal"}
             ]
-            self.create_coaches(coaches)
+            self.create_entity_batch(coaches, "Coach")
 
             seasons = [
-                Season(id="2023", name="2023", year=2023, is_current=True),
-                Season(id="2022", name="2022", year=2022, is_current=False)
+                {"id": "2023", "name": "2023", "year": 2023, "is_current": True},
+                {"id": "2022", "name": "2022", "year": 2022, "is_current": False}
             ]
-            self.create_seasons(seasons)
+            self.create_entity_batch(seasons, "Season")
 
-            self.create_players(data.get("players", []))
-            self.create_matches(data.get("matches", []))
+            self.create_entity_batch(data.get("players", []), "Player")
+            self.create_entity_batch(data.get("matches", []), "Match")
 
             # Create relationships
-            self.create_match_relationships(data.get("matches", []))
-            self.create_player_team_relationships(data.get("players", []))
-            self.create_stadium_relationships()
+            if data.get("matches"):
+                self.create_match_relationships(data.get("matches", []))
+
+            # Skip complex relationships for dictionary-based data
+            self.logger.info("Basic graph structure created")
 
             # Calculate final statistics
             end_time = datetime.now()

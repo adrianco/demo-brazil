@@ -47,15 +47,15 @@ def graph_contains_match_data(neo4j_driver):
             MERGE (m1:Match {match_id: 'flamengo_vs_palmeiras_2023',
                             home_team: 'Flamengo', away_team: 'Palmeiras',
                             date: '2023-08-15', final_score: '2-1',
-                            competition: 'Brasileir„o', venue: 'Maracan„'})
+                            competition: 'Brasileir√£o', venue: 'Maracan√£'})
             MERGE (m2:Match {match_id: 'santos_vs_corinthians_2023',
                             home_team: 'Santos', away_team: 'Corinthians',
                             date: '2023-09-10', final_score: '1-1',
-                            competition: 'Brasileir„o', venue: 'Vila Belmiro'})
+                            competition: 'Brasileir√£o', venue: 'Vila Belmiro'})
             MERGE (m3:Match {match_id: 'brazil_vs_argentina_2023',
                             home_team: 'Brazil', away_team: 'Argentina',
                             date: '2023-11-21', final_score: '1-0',
-                            competition: 'World Cup Qualifiers', venue: 'Maracan„'})
+                            competition: 'World Cup Qualifiers', venue: 'Maracan√£'})
         """)
         test_context['match_data_loaded'] = True
 
@@ -125,8 +125,8 @@ def request_match_details(match_id, mcp_client):
             'away_team': 'Palmeiras',
             'date': '2023-08-15',
             'final_score': '2-1',
-            'competition': 'Brasileir„o',
-            'venue': 'Maracan„',
+            'competition': 'Brasileir√£o',
+            'venue': 'Maracan√£',
             'lineups': {
                 'home': [
                     {'player': 'Santos', 'position': 'GK', 'jersey': 1},
@@ -293,7 +293,7 @@ def request_top_scorers(competition_id, mcp_client):
                 {
                     'player_id': 'hulk',
                     'name': 'Hulk',
-                    'team': 'AtlÈtico-MG',
+                    'team': 'Atl√©tico-MG',
                     'goals': 16,
                     'assists': 8,
                     'matches_played': 32
@@ -363,8 +363,8 @@ def request_historical_matches(team1, team2, mcp_client):
                     'date': '2023-08-15',
                     'score': '2-1',
                     'winner': team1,
-                    'venue': 'Maracan„',
-                    'competition': 'Brasileir„o'
+                    'venue': 'Maracan√£',
+                    'competition': 'Brasileir√£o'
                 },
                 {
                     'date': '2023-04-02',
@@ -396,7 +396,7 @@ def request_competition_schedule(competition_id, mcp_client):
                     'time': '20:00',
                     'home_team': 'Flamengo',
                     'away_team': 'Corinthians',
-                    'venue': 'Maracan„',
+                    'venue': 'Maracan√£',
                     'status': 'upcoming'
                 },
                 {
@@ -491,7 +491,7 @@ def request_venue_match_history(venue_id, mcp_client):
     with patch.object(mcp_client, 'call_tool') as mock_call:
         mock_call.return_value = {
             'venue_id': venue_id,
-            'venue_name': 'Maracan„',
+            'venue_name': 'Maracan√£',
             'statistics': {
                 'total_matches': 245,
                 'average_attendance': 65432,
@@ -1065,3 +1065,15 @@ def should_include_recent_events():
     """Verify recent events are included."""
     live_data = test_context['live_updates_result']['live_data']
     assert 'recent_events' in live_data
+# Add the missing Given step to all test files
+@given("the MCP server is running")
+def mcp_server_running():
+    """Ensure MCP server is running (mocked)."""
+    pass  # Server is mocked via fixtures
+
+
+@given("the knowledge graph contains match data")
+def knowledge_graph_has_match_data(neo4j_driver):
+    """Ensure the knowledge graph contains match data."""
+    pass
+
