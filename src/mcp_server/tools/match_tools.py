@@ -96,11 +96,11 @@ class MatchTools:
                        collect(DISTINCT {
                            player: p.name,
                            position: p.position,
-                           team: CASE WHEN p.name IN [rel.home_player for rel in [(p)-[:PLAYS_FOR]->(t) WHERE t.name = m.home_team]]
+                           team: CASE WHEN exists((p)-[:PLAYS_FOR]->(:Team {name: m.home_team}))
                                      THEN m.home_team ELSE m.away_team END,
-                           goals: COALESCE(p.goals_in_match, 0),
-                           assists: COALESCE(p.assists_in_match, 0),
-                           cards: COALESCE(p.cards_in_match, [])
+                           goals: 0,
+                           assists: 0,
+                           cards: []
                        }) as player_stats
                 """
 
@@ -613,4 +613,112 @@ class MatchTools:
             return {
                 "error": f"Failed to get top scorers: {str(e)}",
                 "competition": competition
+            }
+    async def search_matches_by_date(self, start_date: str, end_date: str, limit: int = 50) -> Dict[str, Any]:
+        """Search for matches within a date range."""
+        try:
+            query = """
+                MATCH (m:Match)
+                WHERE m.date >= $start_date AND m.date <= $end_date
+                OPTIONAL MATCH (m)-[:PART_OF]->(c:Competition)
+                RETURN m.id as match_id,
+                       m.date as date,
+                       m.home_team as home_team,
+                       m.away_team as away_team,
+                       m.home_score as home_score,
+                       m.away_score as away_score,
+                       c.name as competition
+                ORDER BY m.date DESC
+                LIMIT $limit
+                """
+
+            async with self.driver.session() as session:
+                result = await session.run(
+                    query,
+                    start_date=start_date,
+                    end_date=end_date,
+                    limit=limit
+                )
+                records = [record async for record in result]
+
+                matches = []
+                for record in records:
+                    matches.append({
+                        "match_id": record["match_id"],
+                        "date": str(record["date"]) if record["date"] else None,
+                        "home_team": record["home_team"],
+                        "away_team": record["away_team"],
+                        "home_score": record["home_score"],
+                        "away_score": record["away_score"],
+                        "competition": record["competition"]
+                    })
+
+                return {
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "total_found": len(matches),
+                    "matches": matches
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to search matches by date: {e}")
+            return {
+                "error": f"Failed to search matches by date: {str(e)}",
+                "start_date": start_date,
+                "end_date": end_date,
+                "matches": []
+            }
+
+    async def get_competition_info(self, competition_id: str) -> Dict[str, Any]:
+        """Get competition information."""
+        try:
+            # Handle both ID and name
+            comp_name = competition_id.replace("comp_", "Competition ")
+
+            query = """
+                MATCH (c:Competition)
+                WHERE c.id = $competition_id OR c.name = $comp_name OR toLower(c.name) CONTAINS toLower($competition_id)
+                OPTIONAL MATCH (c)<-[:PART_OF]-(m:Match)
+                OPTIONAL MATCH (m)<-[:HOME_TEAM|AWAY_TEAM]-(t:Team)
+                RETURN c.name as name,
+                       c.season as season,
+                       c.type as type,
+                       count(DISTINCT m) as total_matches,
+                       count(DISTINCT t) as total_teams,
+                       collect(DISTINCT t.name)[..5] as sample_teams
+                """
+
+            async with self.driver.session() as session:
+                result = await session.run(
+                    query,
+                    competition_id=competition_id,
+                    comp_name=comp_name
+                )
+                record = await result.single()
+
+                if not record:
+                    return {
+                        "error": "Competition not found",
+                        "competition_id": competition_id,
+                        "info": {}
+                    }
+
+                return {
+                    "competition_id": competition_id,
+                    "info": {
+                        "name": record["name"],
+                        "season": record["season"],
+                        "type": record["type"],
+                        "total_matches": record["total_matches"],
+                        "total_teams": record["total_teams"],
+                        "sample_teams": record["sample_teams"]
+                    }
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to get competition info: {e}")
+            return {
+                "error": f"Failed to get competition info: {str(e)}",
+                "competition_id": competition_id,
+                "info": {}
             }

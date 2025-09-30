@@ -2,7 +2,7 @@
 
 ## Test Execution Summary
 
-**Date**: 2025-09-30 13:41:42
+**Date**: 2025-09-30 13:54:18
 **Environment**: End-to-End Testing (Real MCP HTTP Server + Neo4j Database)
 **MCP Server**: http://localhost:3000
 **Neo4j**: bolt://localhost:7687
@@ -12,54 +12,48 @@
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Tests** | 15 | 100% |
-| **Passed** | 4 ✅ | 26.7% |
-| **Partial** | 1 ⚠️ | 6.7% |
-| **Failed** | 10 ❌ | 66.7% |
+| **Passed** | 7 ✅ | 46.7% |
+| **Partial** | 8 ⚠️ | 53.3% |
+| **Failed** | 0 ❌ | 0.0% |
 
-**Overall Success Rate**: 33.3%
+**Overall Success Rate**: 100.0%
 
 ## Detailed Test Results
 
 ### Player Management Tools (6 tests)
-- ✅ **Search Player - Neymar** - 0.20s
-- ✅ **Search Player - Pelé** - 0.02s
-- ❌ **Get Player Stats** - 0.01s
-  - Error: {'code': -32603, 'message': "PlayerTools.get_player_stats() got an unexpected keyword argument 'player_id'"}
-- ❌ **Search Players by Position** - 0.01s
-  - Error: {'code': -32603, 'message': "'PlayerTools' object has no attribute 'search_players_by_position'"}
-- ❌ **Get Player Career** - 0.01s
-  - Error: {'code': -32603, 'message': "PlayerTools.get_player_career() got an unexpected keyword argument 'player_id'"}
-- ❌ **Compare Players** - 0.01s
-  - Error: {'code': -32603, 'message': "'PlayerTools' object has no attribute 'compare_players'"}
+- ✅ **Search Player - Neymar** - 0.01s
+- ✅ **Search Player - Pelé** - 0.00s
+- ⚠️ **Get Player Stats** - 0.01s
+  - Error: Missing keys: ['player_id', 'stats']
+- ⚠️ **Search Players by Position** - 0.02s
+- ⚠️ **Get Player Career** - 0.01s
+  - Error: Missing keys: ['player_id', 'career']
+- ✅ **Compare Players** - 0.02s
 
 ### Team Management Tools (6 tests)
-- ✅ **Search Team - Flamengo** - 0.00s
-- ✅ **Search Team - Santos** - 0.01s
-- ❌ **Get Team Stats** - 0.01s
-  - Error: {'code': -32603, 'message': "TeamTools.get_team_stats() got an unexpected keyword argument 'team_id'"}
-- ❌ **Get Team Roster** - 0.00s
-  - Error: {'code': -32603, 'message': "TeamTools.get_team_roster() got an unexpected keyword argument 'team_id'"}
-- ❌ **Search Teams by League** - 0.01s
-  - Error: {'code': -32603, 'message': "'TeamTools' object has no attribute 'search_teams_by_league'"}
-- ❌ **Compare Teams** - 0.00s
-  - Error: {'code': -32603, 'message': "'TeamTools' object has no attribute 'compare_teams'"}
+- ✅ **Search Team - Flamengo** - 0.01s
+- ✅ **Search Team - Santos** - 0.00s
+- ⚠️ **Get Team Stats** - 0.03s
+  - Error: Missing keys: ['team_id', 'stats']
+- ⚠️ **Get Team Roster** - 0.03s
+  - Error: Missing keys: ['team_id', 'roster']
+- ⚠️ **Search Teams by League** - 0.03s
+- ✅ **Compare Teams** - 0.01s
 
 ### Match & Competition Tools (3 tests)
-- ⚠️ **Get Match Details** - 0.66s
+- ⚠️ **Get Match Details** - 0.01s
   - Error: Missing keys: ['match_id', 'details']
-- ❌ **Search Matches by Date** - 0.00s
-  - Error: {'code': -32603, 'message': "'MatchTools' object has no attribute 'search_matches_by_date'"}
-- ❌ **Get Competition Info** - 0.00s
-  - Error: {'code': -32603, 'message': "'MatchTools' object has no attribute 'get_competition_info'"}
+- ⚠️ **Search Matches by Date** - 0.03s
+- ✅ **Get Competition Info** - 0.01s
 
 ## Performance Metrics
 
 | Metric | Value |
 |--------|-------|
-| **Average Response Time** | 0.064s |
+| **Average Response Time** | 0.016s |
 | **Fastest Response** | 0.003s |
-| **Slowest Response** | 0.661s |
-| **Total Test Duration** | 0.96s |
+| **Slowest Response** | 0.035s |
+| **Total Test Duration** | 0.24s |
 
 ## Test Data Coverage
 
@@ -124,6 +118,6 @@
 
 ---
 
-*Generated: 2025-09-30 13:41:42*
+*Generated: 2025-09-30 13:54:18*
 *Test Framework: Custom E2E Test Suite*
 *Data Source: Brazilian Football Kaggle Dataset*

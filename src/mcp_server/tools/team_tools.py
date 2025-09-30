@@ -410,3 +410,126 @@ class TeamTools:
                 "error": f"Failed to get team stats: {str(e)}",
                 "team_name": team_name
             }
+    async def search_teams_by_league(self, league: str, limit: int = 20) -> Dict[str, Any]:
+        """Search for teams by league."""
+        try:
+            query = """
+                MATCH (t:Team)
+                WHERE toLower(t.league) = toLower($league) OR 
+                      toLower(t.competition) = toLower($league)
+                OPTIONAL MATCH (t)<-[:PLAYS_FOR]-(p:Player)
+                RETURN t.name as name,
+                       t.city as city,
+                       t.founded as founded,
+                       t.stadium as stadium,
+                       count(DISTINCT p) as player_count
+                ORDER BY t.name
+                LIMIT $limit
+                """
+
+            async with self.driver.session() as session:
+                result = await session.run(query, league=league, limit=limit)
+                records = [record async for record in result]
+
+                teams = []
+                for record in records:
+                    teams.append({
+                        "name": record["name"],
+                        "city": record["city"],
+                        "founded": record["founded"],
+                        "stadium": record["stadium"],
+                        "player_count": record["player_count"]
+                    })
+
+                return {
+                    "league": league,
+                    "total_found": len(teams),
+                    "teams": teams
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to search teams by league: {e}")
+            return {
+                "error": f"Failed to search teams by league: {str(e)}",
+                "league": league,
+                "teams": []
+            }
+
+    async def compare_teams(self, team1_id: str, team2_id: str) -> Dict[str, Any]:
+        """Compare two teams."""
+        try:
+            # Convert IDs if necessary
+            team1_name = team1_id.replace("team_", "Team ")
+            team2_name = team2_id.replace("team_", "Team ")
+
+            query = """
+                MATCH (t1:Team)
+                WHERE t1.name = $team1_name OR t1.id = $team1_id OR toLower(t1.name) CONTAINS toLower($team1_id)
+                OPTIONAL MATCH (t1)<-[:PLAYS_FOR]-(p1:Player)
+                OPTIONAL MATCH (t1)-[:HOME_TEAM|AWAY_TEAM]-(m1:Match)
+                WITH t1, count(DISTINCT p1) as t1_players, count(DISTINCT m1) as t1_matches
+
+                MATCH (t2:Team)
+                WHERE t2.name = $team2_name OR t2.id = $team2_id OR toLower(t2.name) CONTAINS toLower($team2_id)
+                OPTIONAL MATCH (t2)<-[:PLAYS_FOR]-(p2:Player)
+                OPTIONAL MATCH (t2)-[:HOME_TEAM|AWAY_TEAM]-(m2:Match)
+                WITH t1, t1_players, t1_matches, t2, count(DISTINCT p2) as t2_players, count(DISTINCT m2) as t2_matches
+
+                RETURN t1.name as team1_name,
+                       t1.founded as team1_founded,
+                       t1.stadium as team1_stadium,
+                       t1_players as team1_players,
+                       t1_matches as team1_matches,
+                       t2.name as team2_name,
+                       t2.founded as team2_founded,
+                       t2.stadium as team2_stadium,
+                       t2_players as team2_players,
+                       t2_matches as team2_matches
+                """
+
+            async with self.driver.session() as session:
+                result = await session.run(
+                    query,
+                    team1_name=team1_name,
+                    team1_id=team1_id,
+                    team2_name=team2_name,
+                    team2_id=team2_id
+                )
+                record = await result.single()
+
+                if not record:
+                    return {
+                        "error": "Teams not found",
+                        "team1_id": team1_id,
+                        "team2_id": team2_id
+                    }
+
+                return {
+                    "team1": {
+                        "name": record["team1_name"],
+                        "founded": record["team1_founded"],
+                        "stadium": record["team1_stadium"],
+                        "players": record["team1_players"],
+                        "matches": record["team1_matches"]
+                    },
+                    "team2": {
+                        "name": record["team2_name"],
+                        "founded": record["team2_founded"],
+                        "stadium": record["team2_stadium"],
+                        "players": record["team2_players"],
+                        "matches": record["team2_matches"]
+                    },
+                    "comparison": {
+                        "player_difference": record["team1_players"] - record["team2_players"],
+                        "matches_difference": record["team1_matches"] - record["team2_matches"],
+                        "older_team": record["team1_name"] if record["team1_founded"] < record["team2_founded"] else record["team2_name"]
+                    }
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to compare teams: {e}")
+            return {
+                "error": f"Failed to compare teams: {str(e)}",
+                "team1_id": team1_id,
+                "team2_id": team2_id
+            }

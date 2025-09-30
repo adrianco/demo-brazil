@@ -82,6 +82,9 @@ class HTTPMCPBridge:
                     result = {"error": "Player tools not initialized"}
             elif tool_name == "get_player_stats":
                 if self.mcp_server.player_tools:
+                    # Convert player_id to player_name if needed
+                    if "player_id" in params:
+                        params["player_name"] = params.pop("player_id")
                     result = await self.mcp_server.player_tools.get_player_stats(**params)
                 else:
                     result = {"error": "Player tools not initialized"}
@@ -92,6 +95,9 @@ class HTTPMCPBridge:
                     result = {"error": "Player tools not initialized"}
             elif tool_name == "get_player_career":
                 if self.mcp_server.player_tools:
+                    # Convert player_id to player_name if needed
+                    if "player_id" in params:
+                        params["player_name"] = params.pop("player_id")
                     result = await self.mcp_server.player_tools.get_player_career(**params)
                 else:
                     result = {"error": "Player tools not initialized"}
@@ -107,11 +113,17 @@ class HTTPMCPBridge:
                     result = {"error": "Team tools not initialized"}
             elif tool_name == "get_team_stats":
                 if self.mcp_server.team_tools:
+                    # Convert team_id to team_name if needed
+                    if "team_id" in params:
+                        params["team_name"] = params.pop("team_id")
                     result = await self.mcp_server.team_tools.get_team_stats(**params)
                 else:
                     result = {"error": "Team tools not initialized"}
             elif tool_name == "get_team_roster":
                 if self.mcp_server.team_tools:
+                    # Convert team_id to team_name if needed
+                    if "team_id" in params:
+                        params["team_name"] = params.pop("team_id")
                     result = await self.mcp_server.team_tools.get_team_roster(**params)
                 else:
                     result = {"error": "Team tools not initialized"}
