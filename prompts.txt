@@ -890,3 +890,51 @@ Bash(python /workspaces/demo-brazil/src/mcp_server/http_server.py &)
      ☐ Achieve 100% test pass rate
 
 ──────────────
+● Current Data Status
+
+  No, we don't have the full Kaggle data loaded. Here's the situation:
+
+  What We Have:
+
+  - 112 nodes total:
+    - 50 Matches (sample data)
+    - 28 Players (generated sample)
+    - 12 Teams (generated sample)
+    - 9 Stadiums
+    - 8 Competitions
+    - 3 Coaches
+    - 2 Seasons
+  - 100 relationships (only HOME_TEAM and AWAY_TEAM connections)
+
+  What We Should Have:
+
+  The guide mentions several Kaggle datasets with thousands of matches:
+  - Brazilian Championship matches (2003-2019)
+  - 47,000+ international matches
+  - Full player rosters and statistics
+  - Complete relationship graph (PLAYS_FOR, SCORED_IN, etc.)
+
+  Why We Have Limited Data:
+
+  1. We're using sample CSV files with only 5-6 rows each
+  2. No actual Kaggle data was downloaded
+  3. The data pipeline is configured but only loaded sample data
+
+  What's Missing:
+
+  - Real match data from Brazilian championships
+  - Player performance statistics
+  - Complete team rosters
+  - Player-team relationships (PLAYS_FOR)
+  - Goal scorer data (SCORED_IN relationships)
+  - Competition standings
+  - Historical data
+
+  This explains why the demo questions return "partial" results - we have the infrastructure working correctly,
+  but with minimal sample data instead of the full Kaggle dataset. The MCP server and tools are functioning
+  properly, they just need more data to provide comprehensive answers.
+
+  To get the full data, you would need to:
+  1. Download the actual Kaggle datasets mentioned in the guide
+  2. Place them in the data/kaggle/ directory
+  3. Run the data pipeline to load them into Neo4j
