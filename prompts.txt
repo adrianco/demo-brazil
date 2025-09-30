@@ -938,3 +938,17 @@ Bash(python /workspaces/demo-brazil/src/mcp_server/http_server.py &)
   1. Download the actual Kaggle datasets mentioned in the guide
   2. Place them in the data/kaggle/ directory
   3. Run the data pipeline to load them into Neo4j
+
+
+ results:
+
+● Write(TEST_RESULTS_FULL_DATA.md)
+  ⎿  Wrote 186 lines to TEST_RESULTS_FULL_DATA.md                                
+     # Brazilian Soccer MCP Knowledge Graph - Full Dataset Test Results
+     ## 🎉 SUCCESS: Full Kaggle Dataset Loaded and Tested
+     **Date**: 2025-09-30
+     **Environment**: End-to-End Testing with Complete Brazilian Football Dataset
+     **MCP Server**: http://localhost:3000
+     **Neo4j**: bolt://localhost:7687
+     ## Database Statistics After Full Data Load
+     
