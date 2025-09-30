@@ -147,8 +147,8 @@ class MCPEndToEndTester:
         self.test_tool(
             "Get Player Stats",
             "get_player_stats",
-            {"player_id": "player_0"},
-            ["player_id", "stats"]
+            {"player_id": "Pelé"},
+            ["player", "statistics", "teams", "season"]
         )
 
         self.test_tool(
@@ -161,14 +161,14 @@ class MCPEndToEndTester:
         self.test_tool(
             "Get Player Career",
             "get_player_career",
-            {"player_id": "player_0"},
-            ["player_id", "career"]
+            {"player_id": "Ronaldinho"},
+            ["player", "career_summary", "career_history", "achievements"]
         )
 
         self.test_tool(
             "Compare Players",
             "compare_players",
-            {"player1_id": "player_0", "player2_id": "player_1"},
+            {"player1_id": "Pelé", "player2_id": "Ronaldo"},
             ["player1", "player2", "comparison"]
         )
 
@@ -194,28 +194,28 @@ class MCPEndToEndTester:
         self.test_tool(
             "Get Team Stats",
             "get_team_stats",
-            {"team_id": "team_0"},
-            ["team_id", "stats"]
+            {"team_id": "Clube de Regatas do Flamengo"},
+            ["team", "statistics", "players", "season"]
         )
 
         self.test_tool(
             "Get Team Roster",
             "get_team_roster",
-            {"team_id": "team_0"},
-            ["team_id", "roster"]
+            {"team_id": "Santos Futebol Clube"},
+            ["team", "roster", "season"]
         )
 
         self.test_tool(
             "Search Teams by League",
             "search_teams_by_league",
-            {"league": "Serie A"},
+            {"league": "Campeonato Brasileiro Série A"},
             ["league", "teams"]
         )
 
         self.test_tool(
             "Compare Teams",
             "compare_teams",
-            {"team1_id": "team_0", "team2_id": "team_1"},
+            {"team1_id": "Clube de Regatas do Flamengo", "team2_id": "Santos Futebol Clube"},
             ["team1", "team2", "comparison"]
         )
 
@@ -228,7 +228,7 @@ class MCPEndToEndTester:
             "Get Match Details",
             "get_match_details",
             {"match_id": "match_0"},
-            ["match_id", "details"]
+            ["home_team", "away_team", "date", "score", "players"]
         )
 
         self.test_tool(
@@ -241,8 +241,8 @@ class MCPEndToEndTester:
         self.test_tool(
             "Get Competition Info",
             "get_competition_info",
-            {"competition_id": "comp_0"},
-            ["competition_id", "info"]
+            {"competition_id": "Campeonato Brasileiro Série A"},
+            ["competition", "teams", "matches", "standings"]
         )
 
         # Generate summary

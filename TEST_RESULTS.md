@@ -2,7 +2,7 @@
 
 ## Test Execution Summary
 
-**Date**: 2025-09-30 13:54:18
+**Date**: 2025-09-30 14:01:41
 **Environment**: End-to-End Testing (Real MCP HTTP Server + Neo4j Database)
 **MCP Server**: http://localhost:3000
 **Neo4j**: bolt://localhost:7687
@@ -12,8 +12,8 @@
 | Metric | Count | Percentage |
 |--------|-------|------------|
 | **Total Tests** | 15 | 100% |
-| **Passed** | 7 ✅ | 46.7% |
-| **Partial** | 8 ⚠️ | 53.3% |
+| **Passed** | 11 ✅ | 73.3% |
+| **Partial** | 4 ⚠️ | 26.7% |
 | **Failed** | 0 ❌ | 0.0% |
 
 **Overall Success Rate**: 100.0%
@@ -21,39 +21,37 @@
 ## Detailed Test Results
 
 ### Player Management Tools (6 tests)
-- ✅ **Search Player - Neymar** - 0.01s
-- ✅ **Search Player - Pelé** - 0.00s
-- ⚠️ **Get Player Stats** - 0.01s
-  - Error: Missing keys: ['player_id', 'stats']
-- ⚠️ **Search Players by Position** - 0.02s
-- ⚠️ **Get Player Career** - 0.01s
-  - Error: Missing keys: ['player_id', 'career']
-- ✅ **Compare Players** - 0.02s
+- ⚠️ **Search Player - Neymar** - 0.01s
+- ✅ **Search Player - Pelé** - 0.08s
+- ✅ **Get Player Stats** - 0.05s
+- ✅ **Search Players by Position** - 0.02s
+- ✅ **Get Player Career** - 0.04s
+- ✅ **Compare Players** - 0.04s
 
 ### Team Management Tools (6 tests)
-- ✅ **Search Team - Flamengo** - 0.01s
-- ✅ **Search Team - Santos** - 0.00s
+- ✅ **Search Team - Flamengo** - 0.04s
+- ✅ **Search Team - Santos** - 0.02s
 - ⚠️ **Get Team Stats** - 0.03s
-  - Error: Missing keys: ['team_id', 'stats']
-- ⚠️ **Get Team Roster** - 0.03s
-  - Error: Missing keys: ['team_id', 'roster']
-- ⚠️ **Search Teams by League** - 0.03s
-- ✅ **Compare Teams** - 0.01s
+  - Error: Missing keys: ['players', 'season']
+- ✅ **Get Team Roster** - 0.02s
+- ✅ **Search Teams by League** - 0.01s
+- ✅ **Compare Teams** - 0.02s
 
 ### Match & Competition Tools (3 tests)
 - ⚠️ **Get Match Details** - 0.01s
-  - Error: Missing keys: ['match_id', 'details']
-- ⚠️ **Search Matches by Date** - 0.03s
-- ✅ **Get Competition Info** - 0.01s
+  - Error: Missing keys: ['home_team', 'away_team', 'date', 'score']
+- ✅ **Search Matches by Date** - 0.03s
+- ⚠️ **Get Competition Info** - 0.01s
+  - Error: Missing keys: ['competition', 'teams', 'matches', 'standings']
 
 ## Performance Metrics
 
 | Metric | Value |
 |--------|-------|
-| **Average Response Time** | 0.016s |
-| **Fastest Response** | 0.003s |
-| **Slowest Response** | 0.035s |
-| **Total Test Duration** | 0.24s |
+| **Average Response Time** | 0.028s |
+| **Fastest Response** | 0.008s |
+| **Slowest Response** | 0.078s |
+| **Total Test Duration** | 0.42s |
 
 ## Test Data Coverage
 
@@ -118,6 +116,6 @@
 
 ---
 
-*Generated: 2025-09-30 13:54:18*
+*Generated: 2025-09-30 14:01:41*
 *Test Framework: Custom E2E Test Suite*
 *Data Source: Brazilian Football Kaggle Dataset*
