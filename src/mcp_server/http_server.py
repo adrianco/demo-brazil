@@ -200,12 +200,17 @@ class HTTPMCPBridge:
         return web.json_response({"status": "healthy", "server": "brazilian-soccer-kg"})
 
 
-async def create_app():
+def create_app():
     """Create aiohttp application."""
     bridge = HTTPMCPBridge()
-    await bridge.initialize()
+
+    # Create startup handler to initialize in the right event loop
+    async def on_startup(app):
+        """Initialize bridge on startup."""
+        await bridge.initialize()
 
     app = web.Application()
+    app.on_startup.append(on_startup)
 
     # Add routes
     app.router.add_post('/mcp', bridge.handle_mcp)
@@ -229,7 +234,7 @@ async def create_app():
 def main():
     """Run HTTP server."""
     logger.info("Starting Brazilian Soccer MCP HTTP Server on http://localhost:3000")
-    app = asyncio.run(create_app())
+    app = create_app()  # Don't use asyncio.run here
     web.run_app(app, host='0.0.0.0', port=3000)
 
 

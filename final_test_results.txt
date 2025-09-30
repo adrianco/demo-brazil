@@ -1,0 +1,135 @@
+============================================================
+BRAZILIAN SOCCER MCP KNOWLEDGE GRAPH
+End-to-End Test Suite
+============================================================
+
+🏥 Testing Health Check...
+   ✅ Server is healthy: {'status': 'healthy', 'server': 'brazilian-soccer-kg'}
+
+============================================================
+PLAYER MANAGEMENT TOOLS
+============================================================
+
+📋 Testing: Search Player - Neymar
+   Tool: search_player
+   Params: {'name': 'Neymar'}
+   ✅ PASSED (0.00s)
+      Found 1 players
+
+📋 Testing: Search Player - Pelé
+   Tool: search_player
+   Params: {'name': 'Pelé'}
+   ✅ PASSED (0.01s)
+      Found 1 players
+
+📋 Testing: Get Player Stats
+   Tool: get_player_stats
+   Params: {'player_id': 'Pelé'}
+   ✅ PASSED (0.04s)
+
+📋 Testing: Search Players by Position
+   Tool: search_players_by_position
+   Params: {'position': 'Forward'}
+   ✅ PASSED (0.03s)
+      Found 7 players
+
+📋 Testing: Get Player Career
+   Tool: get_player_career
+   Params: {'player_id': 'Ronaldinho'}
+   ✅ PASSED (0.03s)
+
+📋 Testing: Compare Players
+   Tool: compare_players
+   Params: {'player1_id': 'Pelé', 'player2_id': 'Ronaldo'}
+   ✅ PASSED (0.01s)
+
+============================================================
+TEAM MANAGEMENT TOOLS
+============================================================
+
+📋 Testing: Search Team - Flamengo
+   Tool: search_team
+   Params: {'name': 'Flamengo'}
+   ✅ PASSED (0.02s)
+      Found 1 teams
+
+📋 Testing: Search Team - Santos
+   Tool: search_team
+   Params: {'name': 'Santos'}
+   ✅ PASSED (0.01s)
+      Found 1 teams
+
+📋 Testing: Get Team Stats
+   Tool: get_team_stats
+   Params: {'team_id': 'Clube de Regatas do Flamengo'}
+   ✅ PASSED (0.03s)
+
+📋 Testing: Get Team Roster
+   Tool: get_team_roster
+   Params: {'team_id': 'Santos Futebol Clube'}
+   ✅ PASSED (0.02s)
+
+📋 Testing: Search Teams by League
+   Tool: search_teams_by_league
+   Params: {'league': 'Campeonato Brasileiro Série A'}
+   ✅ PASSED (0.01s)
+
+📋 Testing: Compare Teams
+   Tool: compare_teams
+   Params: {'team1_id': 'Clube de Regatas do Flamengo', 'team2_id': 'Santos Futebol Clube'}
+   ✅ PASSED (0.01s)
+
+============================================================
+MATCH & COMPETITION TOOLS
+============================================================
+
+📋 Testing: Get Match Details
+   Tool: get_match_details
+   Params: {'match_id': 'match_0'}
+   ✅ PASSED (0.02s)
+      Found 2 teams
+
+📋 Testing: Search Matches by Date
+   Tool: search_matches_by_date
+   Params: {'start_date': '2023-01-01', 'end_date': '2023-12-31'}
+   ✅ PASSED (0.02s)
+      Found 50 matches
+
+📋 Testing: Get Competition Info
+   Tool: get_competition_info
+   Params: {'competition_id': 'Campeonato Brasileiro Série A'}
+   ✅ PASSED (0.01s)
+
+============================================================
+TEST SUMMARY
+============================================================
+
+Total Tests: 15
+✅ Passed: 15
+⚠️  Partial: 0
+❌ Failed: 0
+
+Success Rate: 100.0%
+
+⏱️  Performance:
+   Average: 0.019s
+   Fastest: 0.003s
+   Slowest: 0.038s
+
+============================================================
+TEST SUMMARY
+============================================================
+
+Total Tests: 15
+✅ Passed: 15
+⚠️  Partial: 0
+❌ Failed: 0
+
+Success Rate: 100.0%
+
+⏱️  Performance:
+   Average: 0.019s
+   Fastest: 0.003s
+   Slowest: 0.038s
+
+📄 Report saved to: /workspaces/demo-brazil/TEST_RESULTS.md
