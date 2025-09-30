@@ -2,6 +2,9 @@
 
 A comprehensive Model Context Protocol (MCP) server implementation providing intelligent access to Brazilian soccer data through a Neo4j graph database. This project enables Claude AI to answer complex questions about Brazilian soccer players, teams, matches, and competitions.
 
+## NOTE: This repo was used as part of an AI demo
+The initial setup and installation of Claude and Claude-Flow was done in Codespaces. The idea for the demo was a brief chat with the Claude mobile app, saved as a file in the repo. Claude was used to install and document Neo4j. Then on the day of the demo, claude-flow was run. Most of the prompts and some of the results are recorded in prompts.txt. Claude-flow ran for about 1hr before completing the task. On trying to run the BDD tests, more problems were found and fixed. Claude had to be told to download the full dataset, and to fix all the problems so that 100% had no errors, and to run end to end BDD tests against the live database. The testing process resulting in a functonal demo took around another hour, with occasional guidance.
+
 ## 📋 Project Overview
 
 This implementation follows the three-phase approach outlined in `brazilian-soccer-mcp-guide.md`:
