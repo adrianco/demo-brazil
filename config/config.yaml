@@ -1,0 +1,152 @@
+# Brazilian Soccer MCP Knowledge Graph Configuration
+# This file contains all application settings and configurations
+
+# Database Configuration
+database:
+  neo4j:
+    uri: "bolt://localhost:7687"
+    username: "neo4j"
+    password: "neo4j123"
+    database: "neo4j"
+    max_connection_lifetime: 3600
+    max_connection_pool_size: 50
+    connection_timeout: 30
+    trust: "TRUST_ALL_CERTIFICATES"
+
+# MCP Server Configuration
+mcp_server:
+  name: "brazilian-soccer-knowledge-graph"
+  version: "1.0.0"
+  description: "MCP server for Brazilian soccer data knowledge graph"
+  host: "localhost"
+  port: 8000
+  debug: true
+  log_level: "INFO"
+
+# Data Sources Configuration
+data_sources:
+  brasileirao:
+    base_url: "https://api.cartola.globo.com"
+    endpoints:
+      teams: "/clubes"
+      players: "/atletas/mercado"
+      matches: "/partidas"
+    rate_limit: 100  # requests per minute
+
+  cbf:
+    base_url: "https://www.cbf.com.br"
+    endpoints:
+      competitions: "/competicoes"
+      statistics: "/estatisticas"
+    rate_limit: 60
+
+  transfermarkt:
+    base_url: "https://www.transfermarkt.com.br"
+    user_agent: "Mozilla/5.0 (compatible; BrazilianSoccerBot/1.0)"
+    rate_limit: 30
+
+# Data Pipeline Configuration
+data_pipeline:
+  batch_size: 1000
+  max_retries: 3
+  retry_delay: 5  # seconds
+  cache_ttl: 3600  # 1 hour
+
+  # ETL Settings
+  extract:
+    concurrent_workers: 5
+    timeout: 30
+
+  transform:
+    validation_strict: true
+    date_format: "%Y-%m-%d"
+
+  load:
+    batch_insert: true
+    create_indexes: true
+    validate_constraints: true
+
+# Graph Schema Configuration
+graph_schema:
+  # Node Labels
+  nodes:
+    player: "Player"
+    team: "Team"
+    match: "Match"
+    competition: "Competition"
+    stadium: "Stadium"
+    coach: "Coach"
+    season: "Season"
+
+  # Relationship Types
+  relationships:
+    plays_for: "PLAYS_FOR"
+    played_in: "PLAYED_IN"
+    hosted_at: "HOSTED_AT"
+    coached_by: "COACHED_BY"
+    competes_in: "COMPETES_IN"
+    scored_in: "SCORED_IN"
+    assists_in: "ASSISTS_IN"
+    transferred_to: "TRANSFERRED_TO"
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name}:{function}:{line} | {message}"
+  rotation: "1 day"
+  retention: "30 days"
+  compression: "gz"
+
+  # Log Files
+  files:
+    main: "logs/brazilian_soccer.log"
+    mcp_server: "logs/mcp_server.log"
+    data_pipeline: "logs/data_pipeline.log"
+    graph_operations: "logs/graph_operations.log"
+
+# Performance Configuration
+performance:
+  # Memory Management
+  max_memory_usage: "2GB"
+  gc_threshold: 0.8
+
+  # Caching
+  cache:
+    enabled: true
+    max_size: "500MB"
+    ttl: 3600
+
+  # Async Settings
+  async:
+    max_workers: 10
+    queue_size: 1000
+
+# Security Configuration
+security:
+  api_keys:
+    required: false
+    validation: true
+
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 1000
+    burst_limit: 100
+
+  cors:
+    enabled: true
+    allowed_origins: ["*"]
+    allowed_methods: ["GET", "POST"]
+
+# Feature Flags
+features:
+  real_time_updates: false
+  advanced_analytics: true
+  ml_predictions: false
+  export_formats: ["json", "csv", "graphml"]
+
+# Development Settings
+development:
+  reload: true
+  debug_queries: true
+  profile_performance: true
+  mock_external_apis: false
