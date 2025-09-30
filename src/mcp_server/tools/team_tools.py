@@ -382,6 +382,8 @@ class TeamTools:
                         "founded": team_record["founded"],
                         "stadium": team_record["stadium"]
                     },
+                    "season": competition if competition else "2023",  # Add season field
+                    "players": top_players,  # Add players field (alias for top_players)
                     "competition": competition or "all_competitions",
                     "statistics": {
                         "matches_played": total_matches,

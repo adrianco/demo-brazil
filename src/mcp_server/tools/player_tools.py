@@ -49,9 +49,8 @@ class PlayerTools:
                 return cached_data
 
         try:
-            # Create a new session for this request
-            session = self.driver.session()
-            try:
+            # Use async with for proper session management
+            async with self.driver.session() as session:
                 # Cypher query to search players
                 query = """
                 MATCH (p:Player)
@@ -88,8 +87,6 @@ class PlayerTools:
                 # Cache the result
                 self.cache[cache_key] = (response, datetime.now())
                 return response
-            finally:
-                await session.close()
 
         except Exception as e:
             logger.error(f"Error searching players: {e}")
