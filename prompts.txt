@@ -640,3 +640,18 @@ TEST_RESULTS.md report
   The MCP server is functioning and can successfully query the Neo4j database with real Brazilian soccer data
   from Kaggle. The core search functionality works well, demonstrating successful end-to-end integration between
   the MCP server and Neo4j database.
+
+> configure Claude to use the MCP server and try out sample questions via Claude
+
+● I'll help you configure Claude to use the MCP server and test it with sample questions. First, let me check if
+  the MCP server is still running and then set up the MCP configuration.
+
+● Bash(curl -s http://localhost:3000/health)
+  ⎿  {                                
+       "status": "healthy",
+       "server": "brazilian-soccer-kg"
+     }
+
+● Good! The server is running. However, Claude needs the MCP server to use the stdio protocol, not HTTP. Let me
+  create a proper MCP server configuration file and set it up:
+
