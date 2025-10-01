@@ -154,19 +154,58 @@ def generate_matches(num_matches=500):
 
     return matches
 
+# Assign each player to a primary team
+def assign_players_to_teams(players, teams):
+    """Assign each player to one primary team."""
+    player_teams = {}
+    players_per_team = len(players) // len(teams) + 1
+
+    team_idx = 0
+    for i, player in enumerate(players):
+        if i % players_per_team == 0 and i > 0:
+            team_idx = (team_idx + 1) % len(teams)
+        player_teams[player["player_id"]] = teams[team_idx]["team_id"]
+
+    return player_teams
+
 # Generate player stats
-def generate_player_stats(matches, players):
+def generate_player_stats(matches, players, player_teams):
     player_stats = []
 
-    for match in matches[:200]:  # Limit for performance
-        # Random players who played
-        playing_players = random.sample(players, min(22, len(players)))
+    for match in matches:
+        home_team = match["home_team"]
+        away_team = match["away_team"]
 
-        for player in playing_players:
+        # Get players who play for home team
+        home_players = [p for p in players if player_teams.get(p["player_id"]) == home_team]
+        # Get players who play for away team
+        away_players = [p for p in players if player_teams.get(p["player_id"]) == away_team]
+
+        # Select 11 players from each team (or all if less than 11)
+        home_squad = random.sample(home_players, min(11, len(home_players))) if home_players else []
+        away_squad = random.sample(away_players, min(11, len(away_players))) if away_players else []
+
+        # Generate stats for home team players
+        for player in home_squad:
             stat = {
                 "match_id": match["match_id"],
                 "player_id": player["player_id"],
-                "team_id": match["home_team"] if random.random() > 0.5 else match["away_team"],
+                "team_id": home_team,
+                "minutes_played": random.randint(1, 90),
+                "goals": random.randint(0, 2) if random.random() > 0.8 else 0,
+                "assists": random.randint(0, 2) if random.random() > 0.85 else 0,
+                "yellow_cards": 1 if random.random() > 0.9 else 0,
+                "red_cards": 1 if random.random() > 0.98 else 0,
+                "rating": round(random.uniform(5.5, 10.0), 1)
+            }
+            player_stats.append(stat)
+
+        # Generate stats for away team players
+        for player in away_squad:
+            stat = {
+                "match_id": match["match_id"],
+                "player_id": player["player_id"],
+                "team_id": away_team,
                 "minutes_played": random.randint(1, 90),
                 "goals": random.randint(0, 2) if random.random() > 0.8 else 0,
                 "assists": random.randint(0, 2) if random.random() > 0.85 else 0,
@@ -226,8 +265,11 @@ write_csv("teams.csv", teams,
 write_csv("players.csv", players,
           ["player_id", "name", "full_name", "position", "birth_date", "nationality", "height", "weight"])
 
+# Assign players to teams (each player gets one primary team)
+player_teams = assign_players_to_teams(players, teams)
+
 # Generate and write player stats
-player_stats = generate_player_stats(matches, players)
+player_stats = generate_player_stats(matches, players, player_teams)
 write_csv("player_stats.csv", player_stats,
           ["match_id", "player_id", "team_id", "minutes_played", "goals", "assists",
            "yellow_cards", "red_cards", "rating"])
