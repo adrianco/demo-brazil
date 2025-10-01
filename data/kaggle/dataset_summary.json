@@ -1,0 +1,13 @@
+{
+  "dataset": "Brazilian Football Dataset",
+  "generated": "2025-10-01T12:26:52.363470",
+  "statistics": {
+    "teams": 20,
+    "players": 40,
+    "matches": 1000,
+    "player_stats": 4041,
+    "competitions": 10,
+    "coaches": 10,
+    "transfers": 100
+  }
+}
