@@ -61,7 +61,8 @@ Using the Claude Code CLI, add the MCP server:
 cd /workspaces/demo-brazil
 
 # Add the MCP server using Claude Code CLI
-claude mcp add brazilian-soccer python -m src.mcp_server.server
+# Note: Use -- to separate command arguments from claude mcp options
+claude mcp add brazilian-soccer python -- -m src.mcp_server.server
 ```
 
 Alternatively, manually edit the Claude Code configuration file:
@@ -232,7 +233,7 @@ Since you're already in a Claude Code session, you can test the MCP server right
 ### 1. Add the MCP Server
 
 ```bash
-claude mcp add brazilian-soccer python -m src.mcp_server.server
+claude mcp add brazilian-soccer python -- -m src.mcp_server.server
 ```
 
 ### 2. Test Queries
