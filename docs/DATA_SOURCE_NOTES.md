@@ -1,133 +1,122 @@
 # Data Source Notes
 
-## Current Implementation: Synthetic Data
+## Current Implementation: Real Kaggle Data ✅
 
-**Status**: The current database uses **generated/synthetic data** created by `scripts/generate_full_dataset.py`.
+**Status**: The database now uses **real Kaggle datasets** with actual Brazilian football match data.
 
 ### What We're Using Now:
-- **Synthetic dataset** with realistic Brazilian football structure
-- 1,000 generated matches
-- 40 famous Brazilian players (Pelé, Neymar, Ronaldo, etc.)
-- 20 real Serie A teams
-- Randomly generated statistics (goals, assists, ratings)
+- **Real Kaggle datasets** with authentic Brazilian football history
+- 17,068 actual matches from various competitions
+- 673 real teams (Brazilian and international)
+- 6 competitions (Brasileirão, Copa do Brasil, Copa Libertadores, etc.)
+- Actual match statistics (goals, corners, attacks, shots)
 
-### Why Synthetic Data:
-1. **No Kaggle API Access**: Cannot download real Kaggle datasets programmatically without authentication
-2. **Demo Purpose**: Synthetic data is sufficient to demonstrate MCP functionality
-3. **Realistic Structure**: Uses authentic team names, player names, and competition formats
+### Data Sources:
+1. **BR-Football-Dataset.csv**: 10,296 matches with detailed statistics (corners, attacks, shots)
+2. **Brasileirao_Matches.csv**: 4,180 league matches from 2012+
+3. **Brazilian_Cup_Matches.csv**: 1,337 cup matches from 2012+
+4. **Libertadores_Matches.csv**: 1,255 continental matches from 2013+
 
-## Upgrading to Real Kaggle Data
+## Data Loading Process
 
-To use **actual Kaggle datasets** instead of synthetic data:
+The database uses real Kaggle data loaded via `scripts/load_real_kaggle_data.py`.
 
-### Step 1: Download Real Datasets
+### To Reload Data:
 
-Visit these Kaggle datasets and download manually:
-
-1. **Brazilian Soccer Database**
-   - URL: https://www.kaggle.com/datasets/ricardomattos05/jogos-do-campeonato-brasileiro
-   - Download CSV files to `data/kaggle/real/`
-
-2. **Brazilian Football Matches (14,000+ matches)**
-   - URL: https://www.kaggle.com/datasets/cuecacuela/brazilian-football-matches
-   - Download CSV files to `data/kaggle/real/`
-
-3. **Campeonato Brasileiro (2003-2019)**
-   - URL: https://www.kaggle.com/datasets/macedojleo/campeonato-brasileiro-2003-a-2019
-   - Download CSV files to `data/kaggle/real/`
-
-### Step 2: Create Real Data Loader
-
-You'll need to create a new loader script that:
-- Reads the actual Kaggle CSV schema
-- Maps Kaggle fields to our Neo4j schema
-- Handles real player statistics (not generated)
-- Preserves actual match results and scores
-
-### Step 3: Schema Mapping
-
-Real Kaggle datasets likely have different schemas than our generated data. Common fields to map:
-
-**Matches:**
-```
-Kaggle Field          → Our Field
-date                  → date
-home_team             → home_team
-away_team             → away_team
-home_score            → home_score
-away_score            → away_score
-competition           → competition
+```bash
+python scripts/load_real_kaggle_data.py
 ```
 
-**Player Stats:**
+This script:
+- Clears existing data from Neo4j
+- Creates constraints for data integrity
+- Loads all four Kaggle CSV files
+- Normalizes team names across datasets
+- Creates proper graph relationships
+- Handles data quality issues (missing values, different formats)
+
+### Schema Mapping
+
+The loader maps Kaggle CSV fields to Neo4j graph structure:
+
+**BR-Football-Dataset.csv:**
 ```
-Kaggle Field          → Our Field
-player_name           → player_id
-goals                 → goals
-assists               → assists
-minutes_played        → minutes_played
-yellow_cards          → yellow_cards
-red_cards             → red_cards
+Kaggle Field          → Neo4j Property
+tournament            → Competition.name
+date                  → Match.date
+time                  → Match.time
+home                  → Team.name (via HOME_TEAM relationship)
+away                  → Team.name (via AWAY_TEAM relationship)
+home_goal             → Match.home_score
+away_goal             → Match.away_score
+home_corner           → Match.home_corners
+away_corner           → Match.away_corners
+home_attack           → Match.home_attacks
+away_attack           → Match.away_attacks
+home_shots            → Match.home_shots
+away_shots            → Match.away_shots
+```
+
+**Brasileirao_Matches.csv:**
+```
+Kaggle Field          → Neo4j Property
+datetime              → Match.datetime
+season                → Match.season
+round                 → Match.round
+home_team             → Team.name (normalized, e.g., "Palmeiras-SP" → "Palmeiras")
+away_team             → Team.name (normalized)
+home_goal             → Match.home_score
+away_goal             → Match.away_score
+home_team_state       → Match.home_state
+away_team_state       → Match.away_state
 ```
 
 ### Current Data Quality
 
-**Generated Data Characteristics:**
-- ✅ Realistic team names and structure
-- ✅ Famous player names (historically accurate)
-- ✅ Proper graph relationships
-- ✅ Each player assigned to one team
-- ⚠️ Random statistics (not based on real performance)
-- ⚠️ Random match results
-- ⚠️ Synthetic match dates
+**Real Kaggle Data Characteristics:**
+- ✅ Actual historical match results from 2012-2023
+- ✅ Real competition data (Brasileirão, Copa do Brasil, Libertadores)
+- ✅ Authentic team names and match statistics
+- ✅ Proper graph relationships (HOME_TEAM, AWAY_TEAM, PART_OF)
+- ✅ 673 unique teams including international clubs
+- ✅ 17,068 verified matches
+- ✅ Detailed match statistics (corners, attacks, shots)
+- ⚠️ No individual player statistics (team-level data only)
+- ⚠️ Some missing scores in Libertadores dataset (handled gracefully)
 
-**Real Kaggle Data Would Provide:**
-- ✅ Actual historical match results
-- ✅ Real player performance statistics
-- ✅ Accurate goal scorers and assist providers
-- ✅ Historical context and trends
-- ✅ Real competition standings
+### Data Quality Improvements:
+- **Team Name Normalization**: Handles variations like "Palmeiras-SP" vs "Palmeiras"
+- **Missing Value Handling**: Gracefully handles '-' and null values in scores
+- **Duplicate Prevention**: Match IDs prevent duplicate entries
+- **Competition Classification**: Automatically categorizes as league/cup/continental
 
-## Trade-offs
+## Implementation Status
 
-### Synthetic Data (Current)
-**Pros:**
-- Works immediately without downloads
-- Consistent schema
-- Demonstrates MCP functionality
-- Good for testing and development
+1. ✅ **Phase 1 (Done)**: Synthetic data with proper graph structure (archived)
+2. ✅ **Phase 2 (Done)**: Real Kaggle data integration complete
+3. ⏳ **Phase 3 (Future)**: Individual player statistics from additional datasets
+4. ⏳ **Phase 4 (Future)**: API integration for current season data
 
-**Cons:**
-- Not historically accurate
-- Random statistics
-- Limited analytical value
+## Quick Start
 
-### Real Kaggle Data
-**Pros:**
-- Historically accurate
-- Real player performance
-- Valuable for analysis
-- Authentic insights
+To load the real Kaggle data into your Neo4j instance:
 
-**Cons:**
-- Requires manual download
-- Schema may need adaptation
-- May have data quality issues
-- Requires Kaggle account
+```bash
+# Ensure Neo4j is running on bolt://localhost:7687
+# Default credentials: neo4j/neo4j123
 
-## Recommendation
+# Load all real Kaggle datasets
+python scripts/load_real_kaggle_data.py
+```
 
-**For Demo/Testing**: Use current synthetic data
-**For Production/Analysis**: Download and load real Kaggle datasets
-
-## Implementation Priority
-
-1. ✅ **Phase 1 (Done)**: Synthetic data with proper graph structure
-2. ⏳ **Phase 2 (Future)**: Real Kaggle data integration
-3. ⏳ **Phase 3 (Future)**: API integration for current season data
+Expected output:
+- 673 teams
+- 17,068 matches
+- 6 competitions
+- 51,204 total relationships
 
 ---
 
 *Last Updated: 2025-10-01*
-*Current Dataset: Synthetic (Generated)*
-*Real Data: Available but not loaded*
+*Current Dataset: Real Kaggle Data (Loaded)*
+*Synthetic Data: Archived (scripts/*.old)*

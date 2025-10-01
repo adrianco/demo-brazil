@@ -952,3 +952,22 @@ Bash(python /workspaces/demo-brazil/src/mcp_server/http_server.py &)
      **Neo4j**: bolt://localhost:7687
      ## Database Statistics After Full Data Load
      
+
+
+     > There are four new files in data/kaggle BR-Football-Dataset.csv and three *_Matches.csv - change to use this 
+data and remove all generated synthetic data and related code 
+
+* Updating documentation to reflect real data usage… (esc to interrupt · ctrl+t to hide todos)
+  ⎿  ☒ Analyze real Kaggle CSV schemas and design Neo4j mapping
+     ☒ Create new loader script for real Kaggle data
+     ☒ Clear existing synthetic data from Neo4j
+     ☒ Load BR-Football-Dataset.csv matches
+     ☒ Load Brasileirao_Matches.csv data
+     ☒ Load Brazilian_Cup_Matches.csv data
+     ☒ Load Libertadores_Matches.csv data
+     ☒ Remove synthetic data generation script
+     ☐ Update documentation to reflect real data usage
+     ☐ Verify data loading and test MCP queries
+
+
+

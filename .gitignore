@@ -301,13 +301,16 @@ Desktop.ini
 
 # Data files (can be large)
 data/
+!data/kaggle/
 datasets/
 *.csv
+!data/kaggle/*.csv
 *.json
 *.xml
 !package.json
 !tsconfig.json
 !.eslintrc.json
+!data/kaggle/*.json
 
 # Model files
 models/
