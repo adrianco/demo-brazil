@@ -106,9 +106,12 @@ def cli(ctx, env, log_level):
     neo4j_config = config["neo4j"]
     db_connection = Neo4jConnection(
         uri=neo4j_config["uri"],
-        username=neo4j_config["username"],
+        user=neo4j_config["username"],
         password=neo4j_config["password"]
     )
+
+    # Initialize the connection
+    db_connection.connect()
 
     # Store in context for subcommands
     ctx.ensure_object(dict)

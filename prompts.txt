@@ -970,4 +970,14 @@ data and remove all generated synthetic data and related code
      ☐ Verify data loading and test MCP queries
 
 
+     Analyzing FIFA players CSV schema… (esc to interrupt · ctrl+t to hide todos · 25s · ↓ 458 tokens)
+  ⎿  ☐ Analyze FIFA players CSV schema
+     ☐ Filter Brazilian players from FIFA datasets
+     ☐ Map FIFA players to teams in Neo4j
+     ☐ Create player nodes with FIFA attributes
+     ☐ Create PLAYS_FOR relationships
+     ☐ Update loader script with player integration
+     ☐ Test player queries via MCP
+
+
 
