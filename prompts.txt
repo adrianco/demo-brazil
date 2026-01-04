@@ -1070,3 +1070,36 @@ claude-flow@2.7.47
   3. ✅ 100% spec compliance (16/16)
   4. ✅ Synchronous BDD tests with pytest-bdd
   5. ✅ Self-contained integration tests with testcontainers
+
+  Evaluation found another issue
+   All open issues have been fixed. Here's a summary:
+
+  Summary
+
+  Fixed Issue #6: [Bug] E2E tests have invalid method signature errors
+
+  Problem
+
+  The e2e tests in tests/e2e/test_player_e2e.py and tests/e2e/test_team_e2e.py failed to collect with:
+  ERROR collecting e2e/test_player_e2e.py
+  Could not determine arguments of <bound method step...>: invalid method signature
+
+  Root Cause
+
+  pytest-bdd step decorators (@given, @when, @then) were incorrectly used on class methods. pytest-bdd cannot properly inspect bound method signatures that include self.
+
+  Solution
+
+  Converted both test files from class-based tests to module-level functions, following the same pattern as the working BDD tests in tests/step_defs/.
+
+  Key changes:
+  - Removed the TestPlayerE2E and TestTeamE2E classes
+  - Converted all step methods to module-level functions
+  - Replaced self parameters with pytest fixtures (neo4j_db, mcp_client)
+  - Used a module-level test_context dictionary for sharing state between steps
+
+  Verification
+
+  Both files now collect successfully:
+  - test_player_e2e.py: 10 tests collected
+  - test_team_e2e.py: 14 tests collected
