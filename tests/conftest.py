@@ -8,37 +8,42 @@ and mock MCP client for comprehensive testing.
 
 PHASE: 3 - Integration & Testing
 PURPOSE: Configure test environment and provide shared fixtures
-DATA SOURCES: Test Neo4j database and mock MCP server
-DEPENDENCIES: pytest, pytest-bdd, neo4j, mock
+DATA SOURCES: Neo4j testcontainer with test data
+DEPENDENCIES: pytest, pytest-bdd, neo4j, testcontainers
 
 TECHNICAL DETAILS:
-- Neo4j Connection: bolt://localhost:7687 (neo4j/neo4j123)
-- Test Database: Isolated test instance
-- MCP Client: Mock implementation for testing
+- Neo4j Connection: Via testcontainers (self-contained)
+- Test Database: Isolated container instance with test data
+- MCP Client: Mock implementation for unit testing
 - Test Coverage: All 13 MCP server tools
-
-INTEGRATION:
-- BDD Framework: pytest-bdd with Given-When-Then scenarios
-- Mock Services: Mock MCP client and Neo4j driver
-- Test Data: Automated test data setup and teardown
 """
 
 import pytest
 import os
+import sys
 import tempfile
 import json
+import logging
+from pathlib import Path
 from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime, timedelta
-from neo4j import GraphDatabase
 from typing import Dict, Any, Optional
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from neo4j import GraphDatabase
+
+# Configure logging for testcontainers
+logging.getLogger("testcontainers").setLevel(logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 # Test configuration
 TEST_CONFIG = {
     'neo4j': {
-        'uri': 'bolt://localhost:7687',
         'username': 'neo4j',
-        'password': 'neo4j123',
+        'password': 'testpassword',
         'database': 'neo4j'
     },
     'mcp_server': {
@@ -76,19 +81,19 @@ TEST_CONFIG = {
         'teams': {
             'flamengo': {
                 'name': 'Flamengo',
-                'league': 'Série A',
+                'league': 'Serie A',
                 'founded': 1895,
-                'stadium': 'Maracanã',
+                'stadium': 'Maracana',
                 'capacity': 78838,
                 'city': 'Rio de Janeiro'
             },
             'palmeiras': {
                 'name': 'Palmeiras',
-                'league': 'Série A',
+                'league': 'Serie A',
                 'founded': 1914,
                 'stadium': 'Allianz Parque',
                 'capacity': 43713,
-                'city': 'São Paulo'
+                'city': 'Sao Paulo'
             }
         },
         'matches': {
@@ -97,12 +102,77 @@ TEST_CONFIG = {
                 'away_team': 'Palmeiras',
                 'date': '2023-08-15',
                 'final_score': '2-1',
-                'competition': 'Brasileirão',
-                'venue': 'Maracanã'
+                'competition': 'Brasileirao',
+                'venue': 'Maracana'
             }
         }
     }
 }
+
+
+# Testcontainers Neo4j fixture
+@pytest.fixture(scope='session')
+def neo4j_container():
+    """
+    Create and manage a Neo4j testcontainer for integration tests.
+
+    This fixture provides an isolated Neo4j instance that is:
+    - Self-contained (no external dependencies)
+    - Pre-populated with test data
+    - Automatically cleaned up after tests
+    """
+    try:
+        from testcontainers.neo4j import Neo4jContainer
+    except ImportError:
+        pytest.skip("testcontainers[neo4j] not installed. Run: pip install testcontainers[neo4j]")
+        return
+
+    # Use Neo4j 5.x for compatibility
+    container = Neo4jContainer("neo4j:5.15.0")
+    container.with_env("NEO4J_AUTH", "neo4j/testpassword")
+
+    try:
+        container.start()
+        logger.info(f"Neo4j container started at {container.get_connection_url()}")
+
+        yield container
+
+    finally:
+        container.stop()
+        logger.info("Neo4j container stopped")
+
+
+@pytest.fixture(scope='session')
+def neo4j_driver(neo4j_container):
+    """
+    Create a Neo4j driver connected to the testcontainer.
+
+    Provides a driver instance that can be used to query the test database.
+    """
+    driver = neo4j_container.get_driver()
+
+    # Load test data into the container
+    from tests.fixtures.test_data_loader import load_test_data
+    counts = load_test_data(driver)
+    logger.info(f"Loaded test data: {counts}")
+
+    yield driver
+
+    driver.close()
+
+
+@pytest.fixture(scope='session')
+def neo4j_connection_info(neo4j_container):
+    """
+    Provide connection information for the Neo4j testcontainer.
+
+    Returns a dictionary with URI, username, and password.
+    """
+    return {
+        'uri': neo4j_container.get_connection_url(),
+        'username': 'neo4j',
+        'password': 'testpassword'
+    }
 
 
 class MockMCPClient:
@@ -169,7 +239,12 @@ class MockMCPClient:
             'referee_statistics': self._mock_referee_statistics(arguments),
             'venue_statistics': self._mock_venue_statistics(arguments),
             'competition_format': self._mock_competition_format(arguments),
-            'live_match_updates': self._mock_live_match_updates(arguments)
+            'live_match_updates': self._mock_live_match_updates(arguments),
+            'get_player_transfers': self._mock_get_player_transfers(arguments),
+            'get_team_transfer_history': self._mock_get_team_transfer_history(arguments),
+            'get_team_coach': self._mock_get_team_coach(arguments),
+            'search_coaches': self._mock_search_coaches(arguments),
+            'get_coach_teams': self._mock_get_coach_teams(arguments)
         }
 
         return responses.get(tool_name, {'error': f'Unknown tool: {tool_name}'})
@@ -311,13 +386,13 @@ class MockMCPClient:
             return {
                 'team_id': 'flamengo',
                 'name': 'Flamengo',
-                'league': 'Série A',
+                'league': 'Serie A',
                 'founded': 1895,
-                'stadium': 'Maracanã',
+                'stadium': 'Maracana',
                 'capacity': 78838,
                 'city': 'Rio de Janeiro',
                 'history': {
-                    'titles': ['Brasileirão 2019, 2020'],
+                    'titles': ['Brasileirao 2019, 2020'],
                     'notable_players': ['Zico', 'Ronaldinho']
                 },
                 'current_squad': [
@@ -420,7 +495,7 @@ class MockMCPClient:
                 ],
                 'outgoing': [
                     {
-                        'player': 'Lucas Paquetá',
+                        'player': 'Lucas Paqueta',
                         'to_team': 'West Ham',
                         'date': '2022-08-30',
                         'fee': 51000000,
@@ -513,7 +588,7 @@ class MockMCPClient:
                     {'name': 'Claudio Ubeda', 'role': 'Assistant Coach'}
                 ],
                 'technical_staff': [
-                    {'name': 'Dr. Márcio Tannure', 'role': 'Head of Medical'}
+                    {'name': 'Dr. Marcio Tannure', 'role': 'Head of Medical'}
                 ]
             }
         }
@@ -524,7 +599,7 @@ class MockMCPClient:
             'team_id': args.get('team_id'),
             'facilities': {
                 'stadium': {
-                    'name': 'Arena do Grêmio',
+                    'name': 'Arena do Gremio',
                     'capacity': 55662,
                     'opened': 2012,
                     'location': 'Porto Alegre, RS',
@@ -549,14 +624,14 @@ class MockMCPClient:
             'rivalries': [
                 {
                     'rival': 'Vasco da Gama',
-                    'rivalry_name': 'Clássico dos Milhões',
+                    'rivalry_name': 'Classico dos Milhoes',
                     'intensity': 'High',
                     'head_to_head': {'wins': 145, 'draws': 89, 'losses': 132},
                     'memorable_matches': [
                         {
                             'date': '2011-05-15',
                             'score': '5-4',
-                            'competition': 'Brasileirão',
+                            'competition': 'Brasileirao',
                             'significance': 'Historic comeback'
                         }
                     ]
@@ -594,8 +669,8 @@ class MockMCPClient:
             'away_team': 'Palmeiras',
             'date': '2023-08-15',
             'final_score': '2-1',
-            'competition': 'Brasileirão',
-            'venue': 'Maracanã',
+            'competition': 'Brasileirao',
+            'venue': 'Maracana',
             'lineups': {
                 'home': [
                     {'player': 'Santos', 'position': 'GK', 'jersey': 1},
@@ -754,8 +829,8 @@ class MockMCPClient:
                     'date': '2023-08-15',
                     'score': '2-1',
                     'winner': args.get('team1_id'),
-                    'venue': 'Maracanã',
-                    'competition': 'Brasileirão'
+                    'venue': 'Maracana',
+                    'competition': 'Brasileirao'
                 }
             ]
         }
@@ -771,7 +846,7 @@ class MockMCPClient:
                     'time': '20:00',
                     'home_team': 'Flamengo',
                     'away_team': 'Corinthians',
-                    'venue': 'Maracanã',
+                    'venue': 'Maracana',
                     'status': 'upcoming'
                 }
             ],
@@ -821,7 +896,7 @@ class MockMCPClient:
         """Mock venue statistics response."""
         return {
             'venue_id': args.get('venue_id'),
-            'venue_name': 'Maracanã',
+            'venue_name': 'Maracana',
             'statistics': {
                 'total_matches': 245,
                 'average_attendance': 65432,
@@ -880,63 +955,98 @@ class MockMCPClient:
             }
         }
 
+    def _mock_get_player_transfers(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Mock player transfers response."""
+        return {
+            'player_id': args.get('player_id'),
+            'player_name': 'Neymar Jr',
+            'transfers': [
+                {
+                    'from_team': 'Santos',
+                    'to_team': 'Barcelona',
+                    'year': 2013,
+                    'transfer_type': 'PERMANENT',
+                    'transfer_id': 'transfer_neymar_1'
+                },
+                {
+                    'from_team': 'Barcelona',
+                    'to_team': 'PSG',
+                    'year': 2017,
+                    'transfer_type': 'PERMANENT',
+                    'transfer_id': 'transfer_neymar_2'
+                }
+            ],
+            'total_transfers': 2
+        }
 
-class MockNeo4jDriver:
-    """Mock Neo4j driver for testing."""
+    def _mock_get_team_transfer_history(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Mock team transfer history response."""
+        return {
+            'team_id': args.get('team_id'),
+            'team_name': 'Flamengo',
+            'transfer_history': {
+                'incoming': [
+                    {
+                        'player_name': 'Gabriel Barbosa',
+                        'from_team': 'Inter Milan',
+                        'year': 2020,
+                        'transfer_type': 'PERMANENT'
+                    }
+                ],
+                'outgoing': [
+                    {
+                        'player_name': 'Vinicius Jr',
+                        'to_team': 'Real Madrid',
+                        'year': 2018,
+                        'transfer_type': 'PERMANENT'
+                    }
+                ]
+            }
+        }
 
-    def __init__(self, test_config: Dict[str, Any]):
-        self.config = test_config
-        self.closed = False
+    def _mock_get_team_coach(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Mock team coach response."""
+        team_id = args.get('team_id', '').lower()
+        coaches = {
+            'flamengo': {'name': 'Jorge Jesus', 'nationality': 'Portugal', 'coach_id': 'coach_jorge_jesus'},
+            'palmeiras': {'name': 'Abel Ferreira', 'nationality': 'Portugal', 'coach_id': 'coach_abel_ferreira'},
+            'corinthians': {'name': 'Vagner Mancini', 'nationality': 'Brazil', 'coach_id': 'coach_vagner_mancini'},
+            'sao_paulo': {'name': 'Fernando Diniz', 'nationality': 'Brazil', 'coach_id': 'coach_fernando_diniz'},
+            'gremio': {'name': 'Renato Gaucho', 'nationality': 'Brazil', 'coach_id': 'coach_renato_gaucho'}
+        }
+        if team_id in coaches:
+            return {
+                'team_id': team_id,
+                'coach': coaches[team_id],
+                'is_active': True
+            }
+        return {'error': 'Coach not found for team'}
 
-    def session(self):
-        """Return mock session."""
-        return MockNeo4jSession()
+    def _mock_search_coaches(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Mock search coaches response."""
+        name = args.get('name', '').lower()
+        coaches = [
+            {'coach_id': 'coach_jorge_jesus', 'name': 'Jorge Jesus', 'nationality': 'Portugal', 'current_team': 'Flamengo'},
+            {'coach_id': 'coach_abel_ferreira', 'name': 'Abel Ferreira', 'nationality': 'Portugal', 'current_team': 'Palmeiras'},
+            {'coach_id': 'coach_vagner_mancini', 'name': 'Vagner Mancini', 'nationality': 'Brazil', 'current_team': 'Corinthians'}
+        ]
+        results = [c for c in coaches if name in c['name'].lower()]
+        return {
+            'coaches': results if results else coaches[:2],
+            'total_count': len(results) if results else 2
+        }
 
-    def close(self):
-        """Close mock driver."""
-        self.closed = True
-
-    def verify_connectivity(self):
-        """Verify mock connectivity."""
-        return {'address': self.config['neo4j']['uri']}
-
-
-class MockNeo4jSession:
-    """Mock Neo4j session for testing."""
-
-    def __init__(self):
-        self.closed = False
-
-    def run(self, query: str, parameters: Optional[Dict[str, Any]] = None):
-        """Mock query execution."""
-        return MockNeo4jResult()
-
-    def close(self):
-        """Close mock session."""
-        self.closed = True
-
-    def __enter__(self):
-        """Context manager entry."""
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        self.close()
-
-
-class MockNeo4jResult:
-    """Mock Neo4j result for testing."""
-
-    def __init__(self):
-        self.records = []
-
-    def single(self):
-        """Return single record."""
-        return {'count': 1} if self.records else None
-
-    def data(self):
-        """Return data list."""
-        return self.records
+    def _mock_get_coach_teams(self, args: Dict[str, Any]) -> Dict[str, Any]:
+        """Mock get coach teams response."""
+        coach_id = args.get('coach_id', '')
+        return {
+            'coach_id': coach_id,
+            'coach_name': 'Jorge Jesus',
+            'teams': [
+                {'team_id': 'team_flamengo', 'team_name': 'Flamengo', 'is_current': True, 'start_date': '2019-06-01'},
+                {'team_id': 'team_benfica', 'team_name': 'Benfica', 'is_current': False, 'start_date': '2015-06-01', 'end_date': '2019-05-31'}
+            ]
+        }
 
 
 # Pytest fixtures
@@ -944,14 +1054,6 @@ class MockNeo4jResult:
 def test_config():
     """Provide test configuration."""
     return TEST_CONFIG
-
-
-@pytest.fixture(scope='session')
-def neo4j_driver(test_config):
-    """Provide mock Neo4j driver for testing."""
-    driver = MockNeo4jDriver(test_config)
-    yield driver
-    driver.close()
 
 
 @pytest.fixture(scope='session')
@@ -982,22 +1084,12 @@ def test_match_data():
 
 
 @pytest.fixture(autouse=True)
-def setup_test_environment(neo4j_driver, mcp_client):
+def setup_test_environment(mcp_client):
     """Set up test environment before each test."""
     # Reset mock client state
     mcp_client.call_count = 0
     mcp_client.last_call = None
-
-    # Ensure database is in clean state
-    with neo4j_driver.session() as session:
-        # Clear any existing test data
-        session.run("MATCH (n) DETACH DELETE n")
-
     yield
-
-    # Cleanup after test
-    with neo4j_driver.session() as session:
-        session.run("MATCH (n) DETACH DELETE n")
 
 
 @pytest.fixture
@@ -1041,6 +1133,15 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "unit: marks tests as unit tests"
     )
+    config.addinivalue_line(
+        "markers", "e2e: marks tests as end-to-end tests"
+    )
+    config.addinivalue_line(
+        "markers", "requires_mcp: test requires MCP server"
+    )
+    config.addinivalue_line(
+        "markers", "requires_neo4j: test requires Neo4j database"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
@@ -1049,6 +1150,10 @@ def pytest_collection_modifyitems(config, items):
         # Add integration marker to BDD tests
         if 'features' in str(item.fspath):
             item.add_marker(pytest.mark.integration)
+
+        # Add e2e marker to e2e tests
+        if 'e2e' in str(item.fspath):
+            item.add_marker(pytest.mark.e2e)
 
         # Add slow marker to tests that might be slow
         if 'test_match_steps' in str(item.fspath):
@@ -1128,38 +1233,3 @@ def generate_mock_match(match_id: str = None) -> Dict[str, Any]:
         'competition': 'Test Competition',
         'venue': 'Test Venue'
     }
-
-
-# Environment validation
-def validate_test_environment():
-    """Validate test environment is properly configured."""
-    required_env_vars = []
-    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
-
-    if missing_vars:
-        pytest.skip(f"Missing required environment variables: {missing_vars}")
-
-    # Check if Neo4j is available (for integration tests)
-    try:
-        driver = GraphDatabase.driver(
-            TEST_CONFIG['neo4j']['uri'],
-            auth=(TEST_CONFIG['neo4j']['username'], TEST_CONFIG['neo4j']['password'])
-        )
-        driver.verify_connectivity()
-        driver.close()
-    except Exception as e:
-        pytest.skip(f"Neo4j not available for integration tests: {e}")
-
-
-# Pytest hooks
-def pytest_runtest_setup(item):
-    """Set up individual test runs."""
-    # Skip integration tests if environment not ready
-    if item.get_closest_marker("integration"):
-        validate_test_environment()
-
-
-def pytest_runtest_teardown(item, nextitem):
-    """Clean up after individual test runs."""
-    # Reset any global state if needed
-    pass

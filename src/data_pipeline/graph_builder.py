@@ -536,3 +536,315 @@ class GraphBuilder:
             validation_results["success"] = False
 
         return validation_results
+
+    def create_transfer_relationships(self, transfers: List[Any]) -> int:
+        """
+        Create transfer relationships: Player TRANSFERRED_FROM/TO Team.
+
+        For each transfer:
+        - Create TRANSFERRED_FROM relationship: Player -> Team (source team)
+        - Create TRANSFERRED_TO relationship: Player -> Team (destination team)
+
+        Args:
+            transfers: List of transfer entities (dicts or objects)
+
+        Returns:
+            Number of relationships created
+        """
+        if not transfers:
+            return 0
+
+        relationships_created = 0
+
+        for i in range(0, len(transfers), self.batch_size):
+            batch = transfers[i:i + self.batch_size]
+
+            try:
+                # Normalize transfer data
+                transfer_data = []
+                for t in batch:
+                    if isinstance(t, dict):
+                        transfer_data.append({
+                            "id": t.get("id"),
+                            "player_id": t.get("player_id"),
+                            "from_team_id": t.get("from_team_id"),
+                            "to_team_id": t.get("to_team_id"),
+                            "from_team_name": t.get("from_team_name"),
+                            "to_team_name": t.get("to_team_name"),
+                            "transfer_year": t.get("transfer_year"),
+                            "transfer_type": t.get("transfer_type", "PERMANENT")
+                        })
+                    else:
+                        transfer_data.append({
+                            "id": t.id,
+                            "player_id": getattr(t, "player_id", None),
+                            "from_team_id": getattr(t, "from_team_id", None),
+                            "to_team_id": getattr(t, "to_team_id", None),
+                            "from_team_name": getattr(t, "from_team_name", None),
+                            "to_team_name": getattr(t, "to_team_name", None),
+                            "transfer_year": getattr(t, "transfer_year", None),
+                            "transfer_type": getattr(t, "transfer_type", "PERMANENT")
+                        })
+
+                # Create TRANSFERRED_FROM relationships (Player -> source Team)
+                query_from = """
+                    UNWIND $transfers AS transfer
+                    MATCH (p:Player {id: transfer.player_id})
+                    MATCH (t:Team) WHERE t.id = transfer.from_team_id OR t.name = transfer.from_team_name
+                    MERGE (p)-[r:TRANSFERRED_FROM {transfer_id: transfer.id}]->(t)
+                    SET r.year = transfer.transfer_year,
+                        r.transfer_type = transfer.transfer_type
+                    RETURN count(r) as created
+                """
+                result = self.db.execute_write_query(query_from, {"transfers": transfer_data})
+                from_created = result[0]["created"] if result else 0
+
+                # Create TRANSFERRED_TO relationships (Player -> destination Team)
+                query_to = """
+                    UNWIND $transfers AS transfer
+                    MATCH (p:Player {id: transfer.player_id})
+                    MATCH (t:Team) WHERE t.id = transfer.to_team_id OR t.name = transfer.to_team_name
+                    MERGE (p)-[r:TRANSFERRED_TO {transfer_id: transfer.id}]->(t)
+                    SET r.year = transfer.transfer_year,
+                        r.transfer_type = transfer.transfer_type
+                    RETURN count(r) as created
+                """
+                result = self.db.execute_write_query(query_to, {"transfers": transfer_data})
+                to_created = result[0]["created"] if result else 0
+
+                batch_created = from_created + to_created
+                relationships_created += batch_created
+
+                self.logger.debug(f"Created {batch_created} transfer relationships in batch")
+
+            except Exception as e:
+                self.logger.error(f"Failed to create transfer relationships: {e}")
+                self.stats["errors"].append(f"Failed to create transfer relationships: {e}")
+
+        self.stats["relationships_created"] += relationships_created
+        self.logger.info(f"Created {relationships_created} transfer relationships (TRANSFERRED_FROM/TO)")
+        return relationships_created
+
+    def create_coach_team_relationships(self, coaches: List[Any]) -> int:
+        """
+        Create Coach -> MANAGES -> Team relationships.
+
+        Args:
+            coaches: List of coach entities (dicts or objects) with team information
+
+        Returns:
+            Number of relationships created
+        """
+        if not coaches:
+            return 0
+
+        relationships_created = 0
+
+        for i in range(0, len(coaches), self.batch_size):
+            batch = coaches[i:i + self.batch_size]
+
+            try:
+                # Normalize coach data
+                coach_data = []
+                for c in batch:
+                    if isinstance(c, dict):
+                        coach_data.append({
+                            "coach_id": c.get("id"),
+                            "team_id": c.get("team_id"),
+                            "team_name": c.get("team_name")
+                        })
+                    else:
+                        coach_data.append({
+                            "coach_id": c.id,
+                            "team_id": getattr(c, "team_id", None),
+                            "team_name": getattr(c, "team_name", None)
+                        })
+
+                # Create MANAGES relationships (Coach -> Team)
+                query = """
+                    UNWIND $coaches AS coach
+                    MATCH (c:Coach {id: coach.coach_id})
+                    MATCH (t:Team) WHERE t.id = coach.team_id OR t.name = coach.team_name
+                    MERGE (c)-[r:MANAGES]->(t)
+                    SET r.active = true
+                    RETURN count(r) as created
+                """
+                result = self.db.execute_write_query(query, {"coaches": coach_data})
+                batch_created = result[0]["created"] if result else 0
+                relationships_created += batch_created
+
+                self.logger.debug(f"Created {batch_created} MANAGES relationships in batch")
+
+            except Exception as e:
+                self.logger.error(f"Failed to create coach-team relationships: {e}")
+                self.stats["errors"].append(f"Failed to create coach-team relationships: {e}")
+
+        self.stats["relationships_created"] += relationships_created
+        self.logger.info(f"Created {relationships_created} Coach -> MANAGES -> Team relationships")
+        return relationships_created
+
+    def build_graph_with_fifa_data(self, transfer_limit: int = 100, coach_limit: int = 50) -> Dict[str, Any]:
+        """
+        Build graph with FIFA data including transfers and coaches.
+
+        This method extends the basic graph with:
+        - Player TRANSFERRED_FROM/TO Team relationships
+        - Coach MANAGES Team relationships
+
+        Args:
+            transfer_limit: Maximum number of transfers to process
+            coach_limit: Maximum number of coaches to process
+
+        Returns:
+            Dictionary containing build statistics
+        """
+        start_time = datetime.now()
+        self.logger.info("Building graph with FIFA data (transfers and coaches)...")
+
+        try:
+            # Reset statistics
+            self.stats = {"nodes_created": 0, "relationships_created": 0, "errors": []}
+
+            # Setup schema
+            self.setup_schema()
+
+            # Extract data from FIFA datasets
+            teams = self.loader.extract_teams_from_fifa(limit=100)
+            players = self.loader.extract_players_from_fifa(year=22, limit=200)
+            transfers = self.loader.extract_transfers_from_fifa(limit=transfer_limit)
+            coaches = self.loader.extract_coaches_from_fifa(limit=coach_limit)
+
+            # Create team nodes
+            if teams:
+                self.create_entity_batch(teams, "Team")
+
+            # Create player nodes
+            if players:
+                self.create_entity_batch(players, "Player")
+
+            # Create coach nodes (without team_id/team_name which are for relationships)
+            if coaches:
+                coach_nodes = []
+                for c in coaches:
+                    coach_node = {
+                        "id": c["id"],
+                        "name": c["name"],
+                        "nationality": c["nationality"]
+                    }
+                    coach_nodes.append(coach_node)
+                self.create_entity_batch(coach_nodes, "Coach")
+
+            # Create transfer nodes
+            if transfers:
+                transfer_nodes = []
+                for t in transfers:
+                    transfer_node = {
+                        "id": t["id"],
+                        "player_id": t["player_id"],
+                        "player_name": t["player_name"],
+                        "from_team_name": t["from_team_name"],
+                        "to_team_name": t["to_team_name"],
+                        "transfer_year": t["transfer_year"],
+                        "transfer_type": t["transfer_type"]
+                    }
+                    transfer_nodes.append(transfer_node)
+                self.create_entity_batch(transfer_nodes, "Transfer")
+
+            # Create TRANSFERRED_FROM and TRANSFERRED_TO relationships
+            if transfers:
+                self.create_transfer_relationships(transfers)
+
+            # Create Coach -> MANAGES -> Team relationships
+            if coaches:
+                self.create_coach_team_relationships(coaches)
+
+            # Create PLAYS_FOR relationships for players to their current teams
+            if players:
+                self._create_player_plays_for_relationships(players)
+
+            # Calculate final statistics
+            end_time = datetime.now()
+            duration = (end_time - start_time).total_seconds()
+
+            final_stats = {
+                **self.stats,
+                "duration_seconds": duration,
+                "data_sources": "FIFA datasets",
+                "transfers_processed": len(transfers),
+                "coaches_processed": len(coaches),
+                "start_time": start_time.isoformat(),
+                "end_time": end_time.isoformat(),
+                "success": len(self.stats["errors"]) == 0
+            }
+
+            self.logger.info(f"FIFA graph build completed in {duration:.2f} seconds")
+            self.logger.info(f"Created {self.stats['nodes_created']} nodes and {self.stats['relationships_created']} relationships")
+
+            return final_stats
+
+        except Exception as e:
+            self.logger.error(f"FIFA graph build failed: {e}")
+            self.stats["errors"].append(f"FIFA graph build failed: {e}")
+            return {
+                **self.stats,
+                "success": False,
+                "error": str(e)
+            }
+
+    def _create_player_plays_for_relationships(self, players: List[Any]) -> int:
+        """
+        Create PLAYS_FOR relationships between players and their current teams.
+
+        Args:
+            players: List of player entities with current_team_id or current_team_name
+
+        Returns:
+            Number of relationships created
+        """
+        if not players:
+            return 0
+
+        relationships_created = 0
+
+        try:
+            player_data = []
+            for p in players:
+                if isinstance(p, dict):
+                    team_id = p.get("current_team_id")
+                    team_name = p.get("current_team_name")
+                    if team_id or team_name:
+                        player_data.append({
+                            "player_id": p.get("id"),
+                            "team_id": team_id,
+                            "team_name": team_name
+                        })
+                else:
+                    team_id = getattr(p, "current_team_id", None)
+                    team_name = getattr(p, "current_team_name", None)
+                    if team_id or team_name:
+                        player_data.append({
+                            "player_id": p.id,
+                            "team_id": team_id,
+                            "team_name": team_name
+                        })
+
+            if player_data:
+                query = """
+                    UNWIND $players AS player
+                    MATCH (p:Player {id: player.player_id})
+                    MATCH (t:Team) WHERE t.id = player.team_id OR t.name = player.team_name
+                    MERGE (p)-[r:PLAYS_FOR]->(t)
+                    SET r.current = true
+                    RETURN count(r) as created
+                """
+                result = self.db.execute_write_query(query, {"players": player_data})
+                relationships_created = result[0]["created"] if result else 0
+
+            self.stats["relationships_created"] += relationships_created
+            self.logger.info(f"Created {relationships_created} PLAYS_FOR relationships")
+
+        except Exception as e:
+            self.logger.error(f"Failed to create PLAYS_FOR relationships: {e}")
+            self.stats["errors"].append(f"Failed to create PLAYS_FOR relationships: {e}")
+
+        return relationships_created

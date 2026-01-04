@@ -557,6 +557,346 @@ class StadiumQueries:
         return self.db.execute_read_query(query, {"min_capacity": min_capacity, "max_capacity": max_capacity})
 
 
+class TransferQueries:
+    """Transfer-related queries for the Brazilian Soccer Knowledge Graph."""
+
+    def __init__(self, db: Optional[Neo4jDatabase] = None):
+        self.db = db or get_database()
+
+    def get_player_transfers(self, player_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all transfers for a specific player.
+
+        Args:
+            player_id: The player's ID
+
+        Returns:
+            List of transfer records with source and destination teams
+        """
+        query = """
+        MATCH (p:Player {id: $player_id})
+        OPTIONAL MATCH (p)-[tf:TRANSFERRED_FROM]->(from_team:Team)
+        OPTIONAL MATCH (p)-[tt:TRANSFERRED_TO]->(to_team:Team)
+        WHERE tf.transfer_id = tt.transfer_id
+        RETURN p.name as player_name,
+               from_team.name as from_team,
+               to_team.name as to_team,
+               tf.year as transfer_year,
+               tf.transfer_type as transfer_type,
+               tf.transfer_id as transfer_id
+        ORDER BY tf.year DESC
+        """
+        return self.db.execute_read_query(query, {"player_id": player_id})
+
+    def get_player_transfer_history(self, player_id: str) -> Dict[str, Any]:
+        """
+        Get comprehensive transfer history for a player.
+
+        Args:
+            player_id: The player's ID
+
+        Returns:
+            Dictionary with player info and transfer timeline
+        """
+        query = """
+        MATCH (p:Player {id: $player_id})
+        OPTIONAL MATCH (p)-[tf:TRANSFERRED_FROM]->(from_team:Team)
+        OPTIONAL MATCH (p)-[tt:TRANSFERRED_TO]->(to_team:Team)
+        WHERE tf.transfer_id = tt.transfer_id
+        WITH p,
+             collect({
+                 from_team: from_team.name,
+                 to_team: to_team.name,
+                 year: tf.year,
+                 type: tf.transfer_type
+             }) as transfers
+        RETURN {
+            player: p,
+            total_transfers: size(transfers),
+            transfers: transfers
+        } as history
+        """
+        result = self.db.execute_read_query(query, {"player_id": player_id})
+        return result[0]["history"] if result else {}
+
+    def get_team_transfer_history(self, team_id: str, direction: str = "both", limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        Get transfer history for a team (incoming, outgoing, or both).
+
+        Args:
+            team_id: The team's ID
+            direction: "in" for incoming, "out" for outgoing, "both" for all
+            limit: Maximum number of transfers to return
+
+        Returns:
+            List of transfers involving the team
+        """
+        if direction == "in":
+            query = """
+            MATCH (p:Player)-[tt:TRANSFERRED_TO]->(t:Team {id: $team_id})
+            OPTIONAL MATCH (p)-[tf:TRANSFERRED_FROM]->(from_team:Team)
+            WHERE tf.transfer_id = tt.transfer_id
+            RETURN p.name as player_name,
+                   p.id as player_id,
+                   from_team.name as from_team,
+                   t.name as to_team,
+                   tt.year as transfer_year,
+                   tt.transfer_type as transfer_type,
+                   'incoming' as direction
+            ORDER BY tt.year DESC
+            LIMIT $limit
+            """
+        elif direction == "out":
+            query = """
+            MATCH (p:Player)-[tf:TRANSFERRED_FROM]->(t:Team {id: $team_id})
+            OPTIONAL MATCH (p)-[tt:TRANSFERRED_TO]->(to_team:Team)
+            WHERE tf.transfer_id = tt.transfer_id
+            RETURN p.name as player_name,
+                   p.id as player_id,
+                   t.name as from_team,
+                   to_team.name as to_team,
+                   tf.year as transfer_year,
+                   tf.transfer_type as transfer_type,
+                   'outgoing' as direction
+            ORDER BY tf.year DESC
+            LIMIT $limit
+            """
+        else:
+            query = """
+            MATCH (t:Team {id: $team_id})
+            OPTIONAL MATCH (p1:Player)-[tt:TRANSFERRED_TO]->(t)
+            OPTIONAL MATCH (p1)-[tf1:TRANSFERRED_FROM]->(from_team:Team)
+            WHERE tf1.transfer_id = tt.transfer_id
+            WITH t, collect({
+                player_name: p1.name,
+                player_id: p1.id,
+                from_team: from_team.name,
+                to_team: t.name,
+                year: tt.year,
+                type: tt.transfer_type,
+                direction: 'incoming'
+            }) as incoming
+
+            OPTIONAL MATCH (p2:Player)-[tf2:TRANSFERRED_FROM]->(t)
+            OPTIONAL MATCH (p2)-[tt2:TRANSFERRED_TO]->(to_team:Team)
+            WHERE tf2.transfer_id = tt2.transfer_id
+            WITH incoming, collect({
+                player_name: p2.name,
+                player_id: p2.id,
+                from_team: t.name,
+                to_team: to_team.name,
+                year: tf2.year,
+                type: tf2.transfer_type,
+                direction: 'outgoing'
+            }) as outgoing
+
+            RETURN incoming + outgoing as transfers
+            LIMIT $limit
+            """
+        return self.db.execute_read_query(query, {"team_id": team_id, "limit": limit})
+
+    def get_transfers_by_year(self, year: int, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Get all transfers for a specific year.
+
+        Args:
+            year: The transfer year
+            limit: Maximum number of transfers to return
+
+        Returns:
+            List of transfers for that year
+        """
+        query = """
+        MATCH (p:Player)-[tf:TRANSFERRED_FROM]->(from_team:Team)
+        MATCH (p)-[tt:TRANSFERRED_TO]->(to_team:Team)
+        WHERE tf.transfer_id = tt.transfer_id AND tf.year = $year
+        RETURN p.name as player_name,
+               p.id as player_id,
+               from_team.name as from_team,
+               to_team.name as to_team,
+               tf.year as transfer_year,
+               tf.transfer_type as transfer_type
+        ORDER BY p.name
+        LIMIT $limit
+        """
+        return self.db.execute_read_query(query, {"year": year, "limit": limit})
+
+    def get_transfer_statistics(self) -> Dict[str, Any]:
+        """
+        Get overall transfer statistics.
+
+        Returns:
+            Dictionary with transfer statistics
+        """
+        query = """
+        MATCH ()-[tf:TRANSFERRED_FROM]->()
+        WITH count(tf) as total_transfers
+        MATCH ()-[tf:TRANSFERRED_FROM]->()
+        WITH total_transfers, tf.year as year, count(*) as count
+        ORDER BY year
+        WITH total_transfers, collect({year: year, count: count}) as by_year
+        MATCH ()-[tf:TRANSFERRED_FROM]->()
+        WITH total_transfers, by_year, tf.transfer_type as type, count(*) as count
+        RETURN {
+            total_transfers: total_transfers,
+            by_year: by_year,
+            by_type: collect({type: type, count: count})
+        } as stats
+        """
+        result = self.db.execute_read_query(query)
+        return result[0]["stats"] if result else {}
+
+
+class CoachQueries:
+    """Coach-related queries for the Brazilian Soccer Knowledge Graph."""
+
+    def __init__(self, db: Optional[Neo4jDatabase] = None):
+        self.db = db or get_database()
+
+    def get_team_coach(self, team_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the current coach for a team.
+
+        Args:
+            team_id: The team's ID
+
+        Returns:
+            Coach information or None if not found
+        """
+        query = """
+        MATCH (c:Coach)-[m:MANAGES]->(t:Team {id: $team_id})
+        WHERE m.active = true
+        RETURN c, t.name as team_name, m.active as is_active
+        """
+        result = self.db.execute_read_query(query, {"team_id": team_id})
+        return result[0] if result else None
+
+    def get_coach_by_id(self, coach_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get coach by ID with all managed teams.
+
+        Args:
+            coach_id: The coach's ID
+
+        Returns:
+            Coach information with teams or None if not found
+        """
+        query = """
+        MATCH (c:Coach {id: $coach_id})
+        OPTIONAL MATCH (c)-[m:MANAGES]->(teams:Team)
+        RETURN c,
+               collect({team: teams.name, active: m.active}) as managed_teams,
+               count(teams) as total_teams_managed
+        """
+        result = self.db.execute_read_query(query, {"coach_id": coach_id})
+        return result[0] if result else None
+
+    def get_coach_teams(self, coach_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all teams managed by a coach.
+
+        Args:
+            coach_id: The coach's ID
+
+        Returns:
+            List of teams with management status
+        """
+        query = """
+        MATCH (c:Coach {id: $coach_id})-[m:MANAGES]->(t:Team)
+        RETURN t.id as team_id,
+               t.name as team_name,
+               m.active as is_current,
+               m.start_date as start_date,
+               m.end_date as end_date
+        ORDER BY m.active DESC, m.start_date DESC
+        """
+        return self.db.execute_read_query(query, {"coach_id": coach_id})
+
+    def search_coaches_by_name(self, name: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Search coaches by name (case-insensitive).
+
+        Args:
+            name: Name to search for
+            limit: Maximum results to return
+
+        Returns:
+            List of matching coaches
+        """
+        query = """
+        MATCH (c:Coach)
+        WHERE toLower(c.name) CONTAINS toLower($name)
+        OPTIONAL MATCH (c)-[m:MANAGES {active: true}]->(t:Team)
+        RETURN c, t.name as current_team
+        ORDER BY c.name
+        LIMIT $limit
+        """
+        return self.db.execute_read_query(query, {"name": name, "limit": limit})
+
+    def get_coaches_by_nationality(self, nationality: str) -> List[Dict[str, Any]]:
+        """
+        Get coaches by nationality.
+
+        Args:
+            nationality: Coach's nationality
+
+        Returns:
+            List of coaches with that nationality
+        """
+        query = """
+        MATCH (c:Coach {nationality: $nationality})
+        OPTIONAL MATCH (c)-[m:MANAGES {active: true}]->(t:Team)
+        RETURN c, t.name as current_team
+        ORDER BY c.name
+        """
+        return self.db.execute_read_query(query, {"nationality": nationality})
+
+    def get_all_coaches(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Get all coaches with their current teams.
+
+        Args:
+            limit: Maximum number of coaches to return
+
+        Returns:
+            List of all coaches
+        """
+        query = """
+        MATCH (c:Coach)
+        OPTIONAL MATCH (c)-[m:MANAGES {active: true}]->(t:Team)
+        RETURN c, t.name as current_team
+        ORDER BY c.name
+        LIMIT $limit
+        """
+        return self.db.execute_read_query(query, {"limit": limit})
+
+    def get_coach_statistics(self, coach_id: str) -> Dict[str, Any]:
+        """
+        Get comprehensive statistics for a coach.
+
+        Args:
+            coach_id: The coach's ID
+
+        Returns:
+            Dictionary with coach statistics
+        """
+        query = """
+        MATCH (c:Coach {id: $coach_id})
+        OPTIONAL MATCH (c)-[m:MANAGES]->(teams:Team)
+        WITH c, count(teams) as teams_managed, collect(teams.name) as team_names
+        RETURN {
+            coach: c,
+            total_teams_managed: teams_managed,
+            teams: team_names,
+            win_percentage: c.win_percentage,
+            total_matches: c.total_matches,
+            total_trophies: c.total_trophies
+        } as stats
+        """
+        result = self.db.execute_read_query(query, {"coach_id": coach_id})
+        return result[0]["stats"] if result else {}
+
+
 class AnalyticsQueries:
     """Advanced analytics queries for the Brazilian Soccer Knowledge Graph."""
 
@@ -687,6 +1027,14 @@ def get_stadium_queries() -> StadiumQueries:
 def get_analytics_queries() -> AnalyticsQueries:
     """Get AnalyticsQueries instance."""
     return AnalyticsQueries()
+
+def get_transfer_queries() -> TransferQueries:
+    """Get TransferQueries instance."""
+    return TransferQueries()
+
+def get_coach_queries() -> CoachQueries:
+    """Get CoachQueries instance."""
+    return CoachQueries()
 
 def get_query_builder() -> QueryBuilder:
     """Get QueryBuilder instance."""

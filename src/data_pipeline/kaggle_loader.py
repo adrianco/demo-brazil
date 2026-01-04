@@ -750,3 +750,313 @@ class KaggleLoader:
 
         self.logger.info(f"Data validation completed: {len(report['issues'])} issues found")
         return report
+
+    def load_fifa_players(self, years: Optional[List[int]] = None) -> Dict[int, pd.DataFrame]:
+        """
+        Load FIFA player datasets for specified years.
+
+        Args:
+            years: List of years to load (e.g., [15, 16, 17]). Defaults to all available.
+
+        Returns:
+            Dictionary mapping year to DataFrame
+        """
+        if years is None:
+            years = [15, 16, 17, 18, 19, 20, 21, 22]
+
+        data = {}
+        kaggle_dir = self.data_dir / "kaggle"
+
+        for year in years:
+            filepath = kaggle_dir / f"players_{year}.csv"
+            if filepath.exists():
+                try:
+                    df = self.load_csv_data(str(filepath))
+                    data[year] = df
+                    self.logger.info(f"Loaded {len(df)} players from FIFA {year}")
+                except Exception as e:
+                    self.logger.error(f"Failed to load players_{year}.csv: {e}")
+
+        return data
+
+    def extract_transfers_from_fifa(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Extract player transfers by comparing club changes across FIFA years.
+
+        Args:
+            limit: Maximum number of transfers to extract
+
+        Returns:
+            List of Transfer entities
+        """
+        fifa_data = self.load_fifa_players()
+
+        if not fifa_data:
+            self.logger.warning("No FIFA data available for transfer extraction")
+            return []
+
+        transfers = []
+        years = sorted(fifa_data.keys())
+
+        # Track player clubs across years
+        player_history = {}  # {sofifa_id: {year: club_name}}
+
+        for year in years:
+            df = fifa_data[year]
+            for _, row in df.iterrows():
+                sofifa_id = row.get('sofifa_id')
+                club_name = row.get('club_name')
+
+                if pd.isna(sofifa_id) or pd.isna(club_name):
+                    continue
+
+                sofifa_id = int(sofifa_id)
+
+                if sofifa_id not in player_history:
+                    player_history[sofifa_id] = {
+                        'clubs': {},
+                        'name': row.get('short_name', ''),
+                        'long_name': row.get('long_name', '')
+                    }
+
+                player_history[sofifa_id]['clubs'][year] = {
+                    'club': club_name,
+                    'joined': row.get('club_joined'),
+                    'loaned_from': row.get('club_loaned_from')
+                }
+
+        # Identify transfers (club changes between consecutive years)
+        transfer_id = 0
+        for sofifa_id, history in player_history.items():
+            clubs = history['clubs']
+            years_list = sorted(clubs.keys())
+
+            for i in range(len(years_list) - 1):
+                prev_year = years_list[i]
+                curr_year = years_list[i + 1]
+
+                prev_club = clubs[prev_year]['club']
+                curr_club = clubs[curr_year]['club']
+                loaned_from = clubs[curr_year].get('loaned_from')
+
+                # Skip if same club or loaned from same club
+                if prev_club == curr_club:
+                    continue
+
+                # Skip if player is on loan
+                if pd.notna(loaned_from):
+                    transfer_type = "LOAN"
+                else:
+                    transfer_type = "PERMANENT"
+
+                transfer = {
+                    "id": f"TRF_{transfer_id:06d}",
+                    "player_id": f"FIFA_{sofifa_id}",
+                    "player_name": history['name'],
+                    "from_team_id": self._generate_team_id(prev_club),
+                    "from_team_name": prev_club,
+                    "to_team_id": self._generate_team_id(curr_club),
+                    "to_team_name": curr_club,
+                    "transfer_year": 2000 + curr_year,
+                    "transfer_type": transfer_type
+                }
+                transfers.append(transfer)
+                transfer_id += 1
+
+                if len(transfers) >= limit:
+                    break
+
+            if len(transfers) >= limit:
+                break
+
+        self.logger.info(f"Extracted {len(transfers)} transfers from FIFA data")
+        return transfers
+
+    def extract_coaches_from_fifa(self, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Extract coaches managing teams from FIFA datasets.
+
+        Since FIFA player data doesn't include coaches directly, we'll create
+        sample coaches for the major teams in the datasets.
+
+        Args:
+            limit: Maximum number of coaches to extract
+
+        Returns:
+            List of Coach entities with MANAGES relationships
+        """
+        fifa_data = self.load_fifa_players()
+
+        if not fifa_data:
+            self.logger.warning("No FIFA data available for coach extraction")
+            return []
+
+        # Get unique teams from the most recent year
+        latest_year = max(fifa_data.keys())
+        df = fifa_data[latest_year]
+
+        unique_teams = df['club_name'].dropna().unique()
+
+        # Famous coaches and their teams (as sample data)
+        famous_coaches = {
+            'FC Barcelona': {'name': 'Pep Guardiola', 'nationality': 'Spain'},
+            'Real Madrid CF': {'name': 'Carlo Ancelotti', 'nationality': 'Italy'},
+            'FC Bayern München': {'name': 'Julian Nagelsmann', 'nationality': 'Germany'},
+            'Manchester City': {'name': 'Pep Guardiola', 'nationality': 'Spain'},
+            'Liverpool': {'name': 'Jürgen Klopp', 'nationality': 'Germany'},
+            'Chelsea': {'name': 'Thomas Tuchel', 'nationality': 'Germany'},
+            'Manchester United': {'name': 'Erik ten Hag', 'nationality': 'Netherlands'},
+            'Paris Saint-Germain': {'name': 'Christophe Galtier', 'nationality': 'France'},
+            'Juventus': {'name': 'Massimiliano Allegri', 'nationality': 'Italy'},
+            'Arsenal': {'name': 'Mikel Arteta', 'nationality': 'Spain'},
+            'Tottenham Hotspur': {'name': 'Antonio Conte', 'nationality': 'Italy'},
+            'Borussia Dortmund': {'name': 'Edin Terzic', 'nationality': 'Germany'},
+            'Atlético Madrid': {'name': 'Diego Simeone', 'nationality': 'Argentina'},
+            'Inter': {'name': 'Simone Inzaghi', 'nationality': 'Italy'},
+            'AC Milan': {'name': 'Stefano Pioli', 'nationality': 'Italy'},
+            'Napoli': {'name': 'Luciano Spalletti', 'nationality': 'Italy'},
+            'Ajax': {'name': 'Alfred Schreuder', 'nationality': 'Netherlands'},
+            'Sevilla FC': {'name': 'Jorge Sampaoli', 'nationality': 'Argentina'},
+            'RB Leipzig': {'name': 'Marco Rose', 'nationality': 'Germany'},
+            'Leicester City': {'name': 'Brendan Rodgers', 'nationality': 'Northern Ireland'},
+        }
+
+        coaches = []
+        coach_id = 0
+
+        for team_name in unique_teams[:limit]:
+            if team_name in famous_coaches:
+                coach_info = famous_coaches[team_name]
+            else:
+                # Generate a placeholder coach
+                coach_info = {'name': f'Coach of {team_name}', 'nationality': 'Unknown'}
+
+            coach = {
+                "id": f"COACH_{coach_id:04d}",
+                "name": coach_info['name'],
+                "nationality": coach_info['nationality'],
+                "team_id": self._generate_team_id(team_name),
+                "team_name": team_name,
+                "manages": True
+            }
+            coaches.append(coach)
+            coach_id += 1
+
+            if len(coaches) >= limit:
+                break
+
+        self.logger.info(f"Extracted {len(coaches)} coaches from FIFA data")
+        return coaches
+
+    def extract_teams_from_fifa(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Extract unique teams from FIFA player datasets.
+
+        Args:
+            limit: Maximum number of teams to extract
+
+        Returns:
+            List of Team entities
+        """
+        fifa_data = self.load_fifa_players()
+
+        if not fifa_data:
+            self.logger.warning("No FIFA data available for team extraction")
+            return []
+
+        all_teams = set()
+
+        for year, df in fifa_data.items():
+            teams = df['club_name'].dropna().unique()
+            for team in teams:
+                all_teams.add(team)
+
+        teams_list = []
+        for i, team_name in enumerate(sorted(all_teams)[:limit]):
+            team = {
+                "id": self._generate_team_id(team_name),
+                "name": team_name,
+                "full_name": team_name,
+                "country": self._infer_team_country(team_name)
+            }
+            teams_list.append(team)
+
+        self.logger.info(f"Extracted {len(teams_list)} teams from FIFA data")
+        return teams_list
+
+    def _infer_team_country(self, team_name: str) -> str:
+        """Infer country from team name patterns."""
+        country_patterns = {
+            'FC Barcelona': 'Spain', 'Real Madrid': 'Spain', 'Atlético Madrid': 'Spain',
+            'Bayern': 'Germany', 'Borussia': 'Germany', 'RB Leipzig': 'Germany',
+            'Manchester': 'England', 'Liverpool': 'England', 'Chelsea': 'England',
+            'Arsenal': 'England', 'Tottenham': 'England', 'Leicester': 'England',
+            'Paris Saint-Germain': 'France', 'Lyon': 'France', 'Marseille': 'France',
+            'Juventus': 'Italy', 'Inter': 'Italy', 'Milan': 'Italy', 'Napoli': 'Italy',
+            'Roma': 'Italy', 'Ajax': 'Netherlands', 'PSV': 'Netherlands',
+            'Porto': 'Portugal', 'Benfica': 'Portugal', 'Sporting': 'Portugal',
+            'Flamengo': 'Brazil', 'Palmeiras': 'Brazil', 'Santos': 'Brazil',
+            'Corinthians': 'Brazil', 'São Paulo': 'Brazil', 'Grêmio': 'Brazil'
+        }
+
+        for pattern, country in country_patterns.items():
+            if pattern.lower() in team_name.lower():
+                return country
+
+        return "Unknown"
+
+    def extract_players_from_fifa(self, year: int = 22, limit: int = 200) -> List[Dict[str, Any]]:
+        """
+        Extract players from a specific FIFA year dataset.
+
+        Args:
+            year: FIFA year (e.g., 22 for FIFA 22)
+            limit: Maximum number of players to extract
+
+        Returns:
+            List of Player entities
+        """
+        fifa_data = self.load_fifa_players([year])
+
+        if year not in fifa_data:
+            self.logger.warning(f"No FIFA {year} data available")
+            return []
+
+        df = fifa_data[year]
+        players = []
+
+        for _, row in df.head(limit).iterrows():
+            player = {
+                "id": f"FIFA_{row.get('sofifa_id', len(players))}",
+                "name": row.get('short_name', ''),
+                "full_name": row.get('long_name', ''),
+                "nationality": row.get('nationality_name', 'Unknown'),
+                "position": self._map_position(row.get('player_positions', '')),
+                "height": safe_float(row.get('height_cm')),
+                "weight": safe_float(row.get('weight_kg')),
+                "preferred_foot": row.get('preferred_foot', 'Right'),
+                "market_value": safe_float(row.get('value_eur')),
+                "current_team_id": self._generate_team_id(row.get('club_name', '')),
+                "current_team_name": row.get('club_name', '')
+            }
+            players.append(player)
+
+        self.logger.info(f"Extracted {len(players)} players from FIFA {year}")
+        return players
+
+    def _map_position(self, positions: str) -> str:
+        """Map FIFA position codes to position categories."""
+        if pd.isna(positions):
+            return "Unknown"
+
+        pos = positions.split(',')[0].strip().upper()
+        position_map = {
+            'GK': 'Goalkeeper',
+            'CB': 'Defender', 'RB': 'Defender', 'LB': 'Defender',
+            'RWB': 'Defender', 'LWB': 'Defender',
+            'CDM': 'Midfielder', 'CM': 'Midfielder', 'CAM': 'Midfielder',
+            'RM': 'Midfielder', 'LM': 'Midfielder',
+            'RW': 'Forward', 'LW': 'Forward', 'CF': 'Forward',
+            'ST': 'Forward', 'RF': 'Forward', 'LF': 'Forward'
+        }
+        return position_map.get(pos, 'Unknown')
