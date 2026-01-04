@@ -1052,4 +1052,21 @@ claude-flow@2.7.47
   Test Results
 
   39 passed in 0.20s
-  
+
+  ● All changes have been pushed successfully. Here's a summary:
+
+  Commit: 65cba57 - Fix all 5 GitHub issues
+
+  Changes pushed:
+  - 17 files changed (3916 insertions, 3971 deletions)
+  - Added tests/fixtures/ with test data loader for coaches, transfers, and relationships
+  - Updated tests/conftest.py with mock handlers for all new queries
+  - Updated tests/e2e/conftest.py with real Neo4j query handlers
+  - Cleaned up redundant step definition files
+
+  All 5 GitHub issues resolved:
+  1. ✅ Player TRANSFERRED_FROM/TO relationships
+  2. ✅ Coach MANAGES relationships
+  3. ✅ 100% spec compliance (16/16)
+  4. ✅ Synchronous BDD tests with pytest-bdd
+  5. ✅ Self-contained integration tests with testcontainers
