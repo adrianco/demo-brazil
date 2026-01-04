@@ -426,6 +426,11 @@ class E2EMCPClient:
         pass
 
 
+# Neo4j test credentials - must match between container and database connection
+NEO4J_TEST_USER = "neo4j"
+NEO4J_TEST_PASSWORD = "testpassword"
+
+
 # Testcontainers Neo4j fixture for e2e tests
 @pytest.fixture(scope="session")
 def neo4j_container():
@@ -441,8 +446,12 @@ def neo4j_container():
         return
 
     # Use Neo4j 5.x for compatibility
-    container = Neo4jContainer("neo4j:5.15.0")
-    container.with_env("NEO4J_AUTH", "neo4j/testpassword")
+    # Pass credentials via constructor parameters (not with_env)
+    container = Neo4jContainer(
+        image="neo4j:5.15.0",
+        username=NEO4J_TEST_USER,
+        password=NEO4J_TEST_PASSWORD
+    )
 
     try:
         container.start()
@@ -487,8 +496,8 @@ def neo4j_db(neo4j_container):
 
     db = Neo4jDatabase(
         uri=connection_url,
-        user="neo4j",
-        password="testpassword"
+        user=NEO4J_TEST_USER,
+        password=NEO4J_TEST_PASSWORD
     )
     db.connect()
 
